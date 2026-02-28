@@ -1,4 +1,4 @@
-package com.yourname.permissionauditor.ui.components
+package com.Neo.permissionauditor.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -7,8 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.yourname.permissionauditor.model.AppPrivacyInfo
-import com.yourname.permissionauditor.model.RiskLevel
+import com.Neo.permissionauditor.model.AppPrivacyInfo
+import com.Neo.permissionauditor.model.RiskLevel
 
 @Composable
 fun AppRow(appInfo: AppPrivacyInfo) {
@@ -20,7 +20,6 @@ fun AppRow(appInfo: AppPrivacyInfo) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // App Name and Risk Level
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -31,7 +30,7 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                     fontWeight = FontWeight.Bold
                 )
                 
-                // Color code the risk text
+                // This 'when' error goes away once RiskLevel is imported successfully!
                 val riskColor = when (appInfo.riskLevel) {
                     RiskLevel.HIGH -> Color.Red
                     RiskLevel.MEDIUM -> Color(0xFFFFA500) // Orange
@@ -47,7 +46,6 @@ fun AppRow(appInfo: AppPrivacyInfo) {
             
             Spacer(modifier = Modifier.height(4.dp))
             
-            // Package name for technical context
             Text(
                 text = appInfo.packageName,
                 style = MaterialTheme.typography.bodySmall,
@@ -56,7 +54,6 @@ fun AppRow(appInfo: AppPrivacyInfo) {
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Permission Indicators
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Camera")
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Microphone")
