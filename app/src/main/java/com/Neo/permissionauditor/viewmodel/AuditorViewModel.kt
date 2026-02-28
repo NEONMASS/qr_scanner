@@ -1,4 +1,4 @@
-package com.yourname.permissionauditor.viewmodel
+package com.Neo.permissionauditor.viewmodel
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
@@ -6,8 +6,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yourname.permissionauditor.model.AppPrivacyInfo
-import com.yourname.permissionauditor.model.RiskLevel
+import com.Neo.permissionauditor.model.AppPrivacyInfo
+import com.Neo.permissionauditor.model.RiskLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,13 +38,14 @@ class AuditorViewModel : ViewModel() {
                 PackageManager.GET_PERMISSIONS.toLong()
             }
 
-            val installedPackages = packageManager.getInstalledPackages(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong())
-                } else {
-                    PackageManager.GET_PERMISSIONS
-                }
-            )
+            // ---------------- REPLACE THIS CHUNK ----------------
+            val installedPackages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstalledPackages(PackageManager.GET_PERMISSIONS)
+            }
+            // ----------------------------------------------------
 
             for (packageInfo in installedPackages) {
                 val isSystemApp = (packageInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0

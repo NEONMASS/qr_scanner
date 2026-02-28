@@ -1,23 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.Neo.permissionauditor">
+package com.Neo.permissionauditor.model
 
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+data class AppPrivacyInfo(
+    val appName: String,
+    val packageName: String,
+    val isSystemApp: Boolean,
+    val hasCameraAccess: Boolean,
+    val hasLocationAccess: Boolean,
+    val hasMicrophoneAccess: Boolean,
+    val riskLevel: RiskLevel
+)
 
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="Permission Auditor"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.PermissionAuditor">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
+enum class RiskLevel {
+    HIGH, MEDIUM, LOW
+}
