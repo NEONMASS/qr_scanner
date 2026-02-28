@@ -1,4 +1,4 @@
-package com.yourname.permissionauditor.ui.screens
+package com.Neo.permissionauditor.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,8 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.yourname.permissionauditor.ui.components.AppRow
-import com.yourname.permissionauditor.viewmodel.AuditorViewModel
+import com.Neo.permissionauditor.ui.components.AppRaw
+import com.Neo.permissionauditor.viewmodel.AuditorViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
