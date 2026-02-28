@@ -1,0 +1,49 @@
+name: Android Release Build & MEGA Upload
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-release:
+    name: Build & Upload Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' 
+
+      # 1. Decode the Keystore securely into the 'app' folder
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > app/upload-keystore.jks
+
+      # 2. Create key.properties so Gradle knows how to sign the APK
+      - name: Create key.properties
+        run: |
+          echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> key.properties
+          echo "storeFile=upload-keystore.jks" >> key.properties
+
+      - name: Grant Execute Permission for Gradle
+        run: chmod +x ./gradlew
+
+      # 3. Build the highly optimized, signed Release APK (No C++ needed)
+      - name: Build Signed Release APK
+        run: ./gradlew assembleRelease
+
+      # 4. Upload to MEGA
+      - name: Upload Release APK to MEGA
+        uses: Difegue/action-megacmd@master
+        with:
+          args: put "app/build/outputs/apk/release/*.apk" "/PermissionAuditor_Release/"
+        env:
+          USERNAME: ${{ secrets.MEGA_USERNAME }}
+          PASSWORD: ${{ secrets.MEGA_PASSWORD }}

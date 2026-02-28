@@ -1,0 +1,29 @@
+# Gradle & Android
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+!build.gradle.kts
+!settings.gradle.kts
+/app/build/
+*.apk
+*.aab
+local.properties
+# Gradle binaries (The 126MB culprit)
+gradle-8.6/
+gradle-8.6-bin.zip
+
+# Android Build folders
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+
+# OS files
+.DS_Store
+echo ".gradle/
+build/
+app/build/
+*.apk
+gradle-8.6/
+gradle-8.6-bin.zip" > .gitignore
