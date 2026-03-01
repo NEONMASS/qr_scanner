@@ -18,5 +18,11 @@ data class AppPrivacyInfo(
     
     val totalPermissionsRequested: Int,
     
+    // NEW: Usage Stats Trackers
+    val usage1Day: String,
+    val usage3Days: String,
+    val usage1Week: String,
+    val usage1Month: String,
+    
     val riskLevel: RiskLevel
 )
