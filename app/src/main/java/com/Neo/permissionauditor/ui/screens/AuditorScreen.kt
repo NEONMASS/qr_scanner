@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.ui.screens // <-- Still safely lowercase!
+package com.Neo.permissionauditor.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,12 +23,23 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Permission Auditor v2") },
+                // NEW: Added a Column to show the total app count as a subtitle
+                title = { 
+                    Column {
+                        Text("Permission Auditor")
+                        if (!isLoading) {
+                            Text(
+                                text = "${apps.size} apps found",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
-                // NEW: The toggle is now a clean symbol embedded directly in the App Bar!
                 actions = {
                     Switch(
                         checked = showSystemApps,
@@ -44,9 +55,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Notice: The giant Card toggle that used to be here is completely gone!
-
-            // SMART LOADING SPINNER
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
