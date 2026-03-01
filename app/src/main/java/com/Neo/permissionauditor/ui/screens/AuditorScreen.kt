@@ -36,7 +36,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
 
     var isSearchActive by remember { mutableStateOf(false) }
     
-    // NEW: Track which company is currently selected for the "Drill-down" view
+    // Track which company is currently selected for the "Drill-down" view
     var selectedCompany by remember { mutableStateOf<String?>(null) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -54,7 +54,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         }.toSortedMap()
     }
 
-    // NEW: Handle the physical back button on the phone
+    // Handle the physical back button on the phone
     BackHandler(enabled = selectedCompany != null) {
         selectedCompany = null
     }
@@ -99,7 +99,14 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                                 value = searchQuery,
                                 onValueChange = { viewModel.updateSearchQuery(it) },
                                 placeholder = { Text("Search...") },
-                                colors = TextFieldDefaults.colors(containerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                                // THE FIX: Using the correct, expanded Material 3 color parameters!
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
                                 singleLine = true
                             )
                         } else {
