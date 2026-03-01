@@ -35,6 +35,9 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
 
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedCompany by remember { mutableStateOf<String?>(null) }
+    
+    // NEW: Memory for the Dropdown menu state
+    var showSortMenu by remember { mutableStateOf(false) }
 
     val filteredApps = apps.filter { 
         it.appName.contains(searchQuery, ignoreCase = true) || 
@@ -48,7 +51,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         }.toSortedMap()
     }
 
-    // Handle physical back button
     BackHandler(enabled = selectedCompany != null) {
         selectedCompany = null
     }
@@ -76,7 +78,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                     }
                 },
                 navigationIcon = {
-                    // Only show the back arrow if we are searching or inside a company view!
                     if (isSearchActive || selectedCompany != null) {
                         IconButton(onClick = {
                             if (isSearchActive) { isSearchActive = false; viewModel.updateSearchQuery("") }
@@ -88,6 +89,42 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 },
                 actions = {
                     if (!isSearchActive) {
+                        // NEW: Dropdown Menu for Sorting
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Sort Options")
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Sort: Risk (High to Low)") },
+                                    onClick = { 
+                                        viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST)
+                                        selectedCompany = null
+                                        showSortMenu = false 
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Sort: Risk (Low to High)") },
+                                    onClick = { 
+                                        viewModel.setSortOrder(SortOrder.RISK_LOW_FIRST)
+                                        selectedCompany = null
+                                        showSortMenu = false 
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Sort: Name (A to Z)") },
+                                    onClick = { 
+                                        viewModel.setSortOrder(SortOrder.APP_NAME_AZ)
+                                        selectedCompany = null
+                                        showSortMenu = false 
+                                    }
+                                )
+                            }
+                        }
+                        
                         IconButton(onClick = { isSearchActive = true }) { Icon(Icons.Default.Search, null) }
                         Switch(checked = showSystemApps, onCheckedChange = { viewModel.toggleSystemApps(it) }, modifier = Modifier.padding(end = 8.dp))
                     } else if (searchQuery.isNotEmpty()) {
@@ -97,34 +134,27 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         },
-        // NEW: The Bottom Navigation Bar!
         bottomBar = {
-            // Auto-hide the bottom bar if the user is searching or viewing a specific company's apps
             if (!isSearchActive && selectedCompany == null) {
+                // NEW: Streamlined 2-Tab Navigation Bar!
                 NavigationBar {
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.Warning, contentDescription = "Risk Level") },
-                        label = { Text("Risk") },
-                        selected = currentSort == SortOrder.RISK,
+                        icon = { Icon(Icons.Default.List, contentDescription = "All Apps") },
+                        label = { Text("All Apps") },
+                        // Highlight this tab if we are NOT viewing the Company Grid
+                        selected = currentSort != SortOrder.PACKAGE_NAME,
                         onClick = { 
-                            viewModel.setSortOrder(SortOrder.RISK)
+                            if (currentSort == SortOrder.PACKAGE_NAME) {
+                                viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST) // Default view when leaving Companies
+                            }
                             selectedCompany = null 
                         }
                     )
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.Build, contentDescription = "Company") },
-                        label = { Text("Company") },
+                        icon = { Icon(Icons.Default.Build, contentDescription = "Companies") },
+                        label = { Text("Companies") },
                         selected = currentSort == SortOrder.PACKAGE_NAME,
                         onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME) }
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.List, contentDescription = "A-Z") },
-                        label = { Text("A-Z") },
-                        selected = currentSort == SortOrder.APP_NAME,
-                        onClick = { 
-                            viewModel.setSortOrder(SortOrder.APP_NAME)
-                            selectedCompany = null 
-                        }
                     )
                 }
             }
