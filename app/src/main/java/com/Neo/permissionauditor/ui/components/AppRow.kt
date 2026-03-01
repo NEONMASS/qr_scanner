@@ -75,9 +75,9 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}") }
-                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}") }
-                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}") }
+                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}") }
+                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}") }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
                     }
