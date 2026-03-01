@@ -56,8 +56,10 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 if (isSystemApp && !_showSystemApps.value) continue
 
                 val requestedPermissions = pack.requestedPermissions ?: emptyArray()
+                
+                // NEW: Get the total count of requested permissions
+                val totalPerms = requestedPermissions.size
 
-                // NEW: Check if the permission is requested AND if it is actually granted by the user
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
                 val isCameraGranted = hasCamera && packageManager.checkPermission("android.permission.CAMERA", pack.packageName) == PackageManager.PERMISSION_GRANTED
 
@@ -85,6 +87,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         isLocationGranted = isLocationGranted,
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
+                        totalPermissionsRequested = totalPerms, // Pass it to the model
                         riskLevel = riskLevel
                     )
                 )
