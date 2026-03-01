@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.ui.screens
+package com.Neo.permissionauditor.ui.screens // <-- Fixed lowercase 'p'
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,7 +17,7 @@ import com.Neo.permissionauditor.viewmodel.AuditorViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
-    
+
     val apps by viewModel.installedApps.collectAsState()
     val showSystemApps by viewModel.showSystemApps.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -25,7 +25,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Permission Auditor") },
+                title = { Text("Permission Auditor v2") }, // <-- Added v2 stamp
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
