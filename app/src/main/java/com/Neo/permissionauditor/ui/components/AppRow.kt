@@ -21,11 +21,8 @@ import com.Neo.permissionauditor.model.RiskLevel
 @Composable
 fun AppRow(appInfo: AppPrivacyInfo) {
     val context = LocalContext.current
-    
-    // NEW: Memory for whether the popup is open or closed
     var showDialog by remember { mutableStateOf(false) }
 
-    // Reusable function to jump to Android settings
     val openSettings = {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:${appInfo.packageName}")
@@ -33,24 +30,31 @@ fun AppRow(appInfo: AppPrivacyInfo) {
         context.startActivity(intent)
     }
 
-    // THE POPUP DIALOG
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(appInfo.appName) },
             text = {
                 Column {
-                    Text("Permission Status:", fontWeight = FontWeight.Bold)
+                    // NEW: Display the total number of permissions requested
+                    Text(
+                        text = "Total Permissions: ${appInfo.totalPermissionsRequested}", 
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     if (appInfo.hasCameraAccess) {
-                        Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}")
                     }
                     if (appInfo.hasMicrophoneAccess) {
-                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}")
                     }
                     if (appInfo.hasLocationAccess) {
-                        Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}")
                     }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
@@ -69,11 +73,10 @@ fun AppRow(appInfo: AppPrivacyInfo) {
         )
     }
 
-    // THE ROW UI
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showDialog = true }, // Tap row to open popup!
+            .clickable { showDialog = true }, 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -82,7 +85,7 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically // Centers the text and the gear icon
+            verticalAlignment = Alignment.CenterVertically 
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -117,14 +120,12 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Update badges to change color if the permission is actually enabled
                     if (appInfo.hasCameraAccess) PermissionBadge("Camera", appInfo.isCameraGranted)
                     if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
                     if (appInfo.hasLocationAccess) PermissionBadge("Location", appInfo.isLocationGranted)
                 }
             }
 
-            // NEW: The Settings Gear Symbol
             IconButton(onClick = openSettings) {
                 Icon(
                     imageVector = Icons.Default.Settings,
@@ -138,7 +139,6 @@ fun AppRow(appInfo: AppPrivacyInfo) {
 
 @Composable
 fun PermissionBadge(label: String, isGranted: Boolean) {
-    // Green if currently granted, Red if disabled
     val bgColor = if (isGranted) Color(0xFF4CAF50).copy(alpha = 0.2f) else MaterialTheme.colorScheme.errorContainer
     val textColor = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onErrorContainer
 
