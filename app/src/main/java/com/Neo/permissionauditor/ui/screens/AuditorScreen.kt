@@ -1,7 +1,6 @@
 package com.Neo.permissionauditor.ui.screens
 
 import androidx.compose.foundation.layout.*
-// NEW GRID IMPORTS
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
