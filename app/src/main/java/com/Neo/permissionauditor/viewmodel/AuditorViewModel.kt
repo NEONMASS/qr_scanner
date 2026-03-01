@@ -1,10 +1,10 @@
 package com.Neo.permissionauditor.viewmodel
 
-import android.content.Context
+import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
@@ -14,84 +14,88 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class AuditorViewModel : ViewModel() {
+class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Holds the UI state. true when scanning, false when done.
+    // 1. Holds the UI loading state (true when scanning)
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // Holds the list of scanned apps.
-    private val _appList = MutableStateFlow<List<AppPrivacyInfo>>(emptyList())
-    val appList: StateFlow<List<AppPrivacyInfo>> = _appList.asStateFlow()
+    // 2. Holds the list of scanned apps
+    private val _installedApps = MutableStateFlow<List<AppPrivacyInfo>>(emptyList())
+    val installedApps: StateFlow<List<AppPrivacyInfo>> = _installedApps.asStateFlow()
 
-    fun scanDevicePermissions(context: Context, showSystemApps: Boolean = false) {
-        _isLoading.value = true
-        
-        // Launch a background thread so the UI doesn't freeze
+    // 3. Holds the state of the System Apps toggle switch
+    private val _showSystemApps = MutableStateFlow(false)
+    val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
+
+    init {
+        // Start scanning automatically when the app opens
+        loadApps()
+    }
+
+    // Called when the user flips the switch in the UI
+    fun toggleSystemApps(show: Boolean) {
+        _showSystemApps.value = show
+        loadApps() // Rescan the apps with the new filter
+    }
+
+    private fun loadApps() {
+        _isLoading.value = true // Show the loading spinner
+
+        // Launch on a background thread so the UI remains buttery smooth
         viewModelScope.launch(Dispatchers.IO) {
-            val packageManager = context.packageManager
-            val scannedApps = mutableListOf<AppPrivacyInfo>()
-
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong())
-            } else {
-                PackageManager.GET_PERMISSIONS.toLong()
-            }
-
-            // ---------------- REPLACE THIS CHUNK ----------------
-            val installedPackages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val packageManager = getApplication<Application>().packageManager
+            
+            val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
             } else {
                 @Suppress("DEPRECATION")
                 packageManager.getInstalledPackages(PackageManager.GET_PERMISSIONS)
             }
-            // ----------------------------------------------------
 
-            for (packageInfo in installedPackages) {
-                val isSystemApp = (packageInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            val appList = mutableListOf<AppPrivacyInfo>()
+
+            for (pack in packages) {
+                val isSystemApp = (pack.applicationInfo?.flags?.and(ApplicationInfo.FLAG_SYSTEM)) != 0
                 
-                // Skip system apps if the toggle is off
-                if (isSystemApp && !showSystemApps) continue
+                // Skip system apps if the toggle is set to false
+                if (isSystemApp && !_showSystemApps.value) continue
 
-                val appName = packageInfo.applicationInfo.loadLabel(packageManager).toString()
-                val requestedPermissions = packageInfo.requestedPermissions?.toList() ?: emptyList()
-
+                val requestedPermissions = pack.requestedPermissions ?: emptyArray()
+                
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
                 val hasLocation = requestedPermissions.contains("android.permission.ACCESS_FINE_LOCATION") || 
                                   requestedPermissions.contains("android.permission.ACCESS_COARSE_LOCATION")
-                val hasMicrophone = requestedPermissions.contains("android.permission.RECORD_AUDIO")
+                val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
 
-                // Calculate Risk Level
-                val permissionCount = listOf(hasCamera, hasLocation, hasMicrophone).count { it }
-                val risk = when (permissionCount) {
+                // Simple risk logic: 3 sensitive permissions = HIGH, 1-2 = MEDIUM, 0 = LOW
+                val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
+                val riskLevel = when (sensitiveCount) {
                     3 -> RiskLevel.HIGH
                     1, 2 -> RiskLevel.MEDIUM
                     else -> RiskLevel.LOW
                 }
 
-                // Only add apps that have at least one of the permissions we care about
-                if (risk != RiskLevel.LOW) {
-                    scannedApps.add(
-                        AppPrivacyInfo(
-                            appName = appName,
-                            packageName = packageInfo.packageName,
-                            isSystemApp = isSystemApp,
-                            hasCameraAccess = hasCamera,
-                            hasLocationAccess = hasLocation,
-                            hasMicrophoneAccess = hasMicrophone,
-                            riskLevel = risk
-                        )
+                appList.add(
+                    AppPrivacyInfo(
+                        appName = pack.applicationInfo?.loadLabel(packageManager).toString(),
+                        packageName = pack.packageName,
+                        isSystemApp = isSystemApp,
+                        hasCameraAccess = hasCamera,
+                        hasLocationAccess = hasLocation,
+                        hasMicrophoneAccess = hasMic,
+                        riskLevel = riskLevel
                     )
-                }
+                )
             }
 
-            // Sort by High Risk first, then alphabetically
-            val sortedList = scannedApps.sortedWith(
+            // Sort so HIGH risk apps are at the top, then sort alphabetically by name
+            val sortedList = appList.sortedWith(
                 compareBy<AppPrivacyInfo> { it.riskLevel }.thenBy { it.appName }
             )
 
-            // Push the result to the UI and hide the loading spinner
-            _appList.value = sortedList
+            // Push the result back to the UI state and hide the loading spinner
+            _installedApps.value = sortedList
             _isLoading.value = false
         }
     }
