@@ -7,51 +7,71 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.Neo.permissionauditor.ui.components.AppRow
 import com.Neo.permissionauditor.viewmodel.AuditorViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AuditorScreen(viewModel: AuditorViewModel) {
-    val context = LocalContext.current
+fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     
-    // Observe the state from the ViewModel
-    val appList by viewModel.appList.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-
-    // Trigger the scan exactly once when the screen loads
-    LaunchedEffect(Unit) {
-        viewModel.scanDevicePermissions(context, showSystemApps = false)
-    }
+    // Observe state from the ViewModel
+    val apps by viewModel.installedApps.collectAsState()
+    val showSystemApps by viewModel.showSystemApps.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Permission Auditor") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
-                // Show a loading spinner while querying the OS
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            // The Toggle Switch UI
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Show System Apps",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = showSystemApps,
+                    onCheckedChange = { isChecked -> 
+                        viewModel.toggleSystemApps(isChecked) 
+                    }
+                )
+            }
+
+            // Show a loading spinner if the app list is empty (still loading)
+            if (apps.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             } else {
-                // Display the high-performance scrolling list
+                // The high-performance list of apps
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(appList) { appInfo ->
+                    items(apps) { appInfo ->
                         AppRow(appInfo = appInfo)
                     }
                 }
