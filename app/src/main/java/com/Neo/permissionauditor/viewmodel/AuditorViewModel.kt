@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-// NEW: Added USAGE_MOST_USED to the options
 enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
@@ -80,7 +79,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             SortOrder.RISK_LOW_FIRST -> rawAppList.sortedBy { it.riskLevel }
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
-            // NEW: Sort by most used apps first!
             SortOrder.USAGE_MOST_USED -> rawAppList.sortedByDescending { it.usage1DayMillis } 
         }
     }
@@ -98,7 +96,9 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
             val app = getApplication<Application>()
             val packageManager = app.packageManager
-            val usageStatsManager = app.getSystemService(Context.USAGE_SERVICE) as UsageStatsManager
+            
+            // THE FIX: Changed to USAGE_STATS_SERVICE
+            val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val now = System.currentTimeMillis()
             
             val stats1Day = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24), now) else emptyMap()
@@ -154,7 +154,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         usage3Days = formatMillis(stats3Days[pack.packageName]?.totalTimeInForeground),
                         usage1Week = formatMillis(stats1Week[pack.packageName]?.totalTimeInForeground),
                         usage1Month = formatMillis(stats1Month[pack.packageName]?.totalTimeInForeground),
-                        usage1DayMillis = raw1DayMillis, // Store raw number for sorting
+                        usage1DayMillis = raw1DayMillis,
                         riskLevel = riskLevel
                     )
                 )
