@@ -1,8 +1,11 @@
 package com.Neo.permissionauditor.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+// NEW GRID IMPORTS
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
@@ -29,13 +32,10 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     val showSystemApps by viewModel.showSystemApps.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    
-    // NEW: Observe the current sorting order
     val currentSort by viewModel.sortOrder.collectAsState()
 
     var isSearchActive by remember { mutableStateOf(false) }
 
-    // NEW: Drawer state and coroutine scope to animate the drawer opening/closing
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -44,7 +44,14 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         it.packageName.contains(searchQuery, ignoreCase = true) 
     }
 
-    // NEW: Wrap the entire screen in the Drawer
+    // NEW: Logic to extract "com.company" and group the apps dynamically!
+    val groupedApps = remember(filteredApps) {
+        filteredApps.groupBy { appInfo ->
+            val parts = appInfo.packageName.split(".")
+            if (parts.size >= 2) "${parts[0]}.${parts[1]}" else appInfo.packageName
+        }.toSortedMap()
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -63,13 +70,13 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                     selected = currentSort == SortOrder.RISK,
                     onClick = {
                         viewModel.setSortOrder(SortOrder.RISK)
-                        scope.launch { drawerState.close() } // Close drawer after clicking
+                        scope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
                 NavigationDrawerItem(
-                    label = { Text("Company Code (Package Name)") },
+                    label = { Text("Company Grouping (Grid)") },
                     selected = currentSort == SortOrder.PACKAGE_NAME,
                     onClick = {
                         viewModel.setSortOrder(SortOrder.PACKAGE_NAME)
@@ -90,7 +97,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
             }
         }
     ) {
-        // Your existing Scaffold goes exactly inside the drawer block here
         Scaffold(
             topBar = {
                 if (isSearchActive) {
@@ -146,10 +152,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                             }
                         },
                         navigationIcon = {
-                            IconButton(onClick = { 
-                                // NEW: Tell the drawer to slide open when the hamburger is tapped!
-                                scope.launch { drawerState.open() } 
-                            }) {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(Icons.Default.Menu, contentDescription = "Open Menu")
                             }
                         },
@@ -184,13 +187,35 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                         CircularProgressIndicator()
                     }
                 } else {
-                    LazyColumn(
+                    // NEW: The 2-Column LazyVerticalGrid!
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(filteredApps) { appInfo ->
-                            AppRow(appInfo = appInfo)
+                        // If they select "Company Grouping", inject the headers across both columns
+                        if (currentSort == SortOrder.PACKAGE_NAME) {
+                            groupedApps.forEach { (companyName, companyApps) ->
+                                item(span = { GridItemSpan(2) }) {
+                                    Text(
+                                        text = companyName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                                    )
+                                }
+                                items(companyApps) { appInfo ->
+                                    AppRow(appInfo = appInfo)
+                                }
+                            }
+                        } else {
+                            // Normal sorting just shows the standard grid without headers
+                            items(filteredApps) { appInfo ->
+                                AppRow(appInfo = appInfo)
+                            }
                         }
                     }
                 }
