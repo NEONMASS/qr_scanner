@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.viewmodel
+package com.Neo.permissionauditor.viewmodel // <-- Fixed lowercase 'p'
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
@@ -23,7 +23,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _showSystemApps = MutableStateFlow(false)
     val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
 
-    // NEW: Explicit loading state
+    // Explicit loading state
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -41,7 +41,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true // Turn on the loading spinner
 
             val packageManager = getApplication<Application>().packageManager
-            
+
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
             } else {
@@ -54,11 +54,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             for (pack in packages) {
                 val appInfo = pack.applicationInfo ?: continue
                 val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                
+
                 if (isSystemApp && !_showSystemApps.value) continue
 
                 val requestedPermissions = pack.requestedPermissions ?: emptyArray()
-                
+
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
                 val hasLocation = requestedPermissions.contains("android.permission.ACCESS_FINE_LOCATION") || 
                                   requestedPermissions.contains("android.permission.ACCESS_COARSE_LOCATION")
