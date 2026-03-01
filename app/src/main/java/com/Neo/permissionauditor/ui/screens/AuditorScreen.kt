@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.Neo.permissionauditor.ui.components.AppRow
+import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.viewmodel.AuditorViewModel
 import com.Neo.permissionauditor.viewmodel.SortOrder
 
@@ -55,9 +56,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         }.toSortedMap()
     }
 
-    BackHandler(enabled = selectedCompany != null) {
-        selectedCompany = null
-    }
+    BackHandler(enabled = selectedCompany != null) { selectedCompany = null }
 
     Scaffold(
         topBar = {
@@ -65,14 +64,9 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 title = {
                     if (isSearchActive) {
                         TextField(
-                            value = searchQuery,
-                            onValueChange = { viewModel.updateSearchQuery(it) },
+                            value = searchQuery, onValueChange = { viewModel.updateSearchQuery(it) },
                             placeholder = { Text("Search...") },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
+                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
                             singleLine = true
                         )
                     } else {
@@ -84,7 +78,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                         IconButton(onClick = {
                             if (isSearchActive) { isSearchActive = false; viewModel.updateSearchQuery("") }
                             else if (selectedCompany != null) { selectedCompany = null }
-                        }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+                        }) { Icon(Icons.Default.ArrowBack, "Back") }
                     }
                 },
                 actions = {
@@ -109,43 +103,45 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         bottomBar = {
             if (!isSearchActive && selectedCompany == null) {
                 NavigationBar {
-                    NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("All Apps") }, selected = currentSort != SortOrder.PACKAGE_NAME, onClick = { if (currentSort == SortOrder.PACKAGE_NAME) viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null })
+                    NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Apps") }, selected = currentSort != SortOrder.PACKAGE_NAME && currentSort != SortOrder.USAGE_MOST_USED, onClick = { if (currentSort == SortOrder.PACKAGE_NAME || currentSort == SortOrder.USAGE_MOST_USED) viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null })
                     NavigationBarItem(icon = { Icon(Icons.Default.Build, null) }, label = { Text("Companies") }, selected = currentSort == SortOrder.PACKAGE_NAME, onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME) })
+                    // NEW: Usage Tab!
+                    NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Usage") }, selected = currentSort == SortOrder.USAGE_MOST_USED, onClick = { viewModel.setSortOrder(SortOrder.USAGE_MOST_USED); selectedCompany = null })
                 }
             }
         }
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             
-            // NEW: The Permission Request Banner
             if (!hasUsagePermission && !isLoading) {
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { 
-                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                    },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                        Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.onErrorContainer)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text("Usage Access Required", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
-                            Text("Tap here to grant permission to view screen time stats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text("Tap here to grant permission for screen time.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                         }
                     }
                 }
-                
-                // Refresh button to check if they granted it after returning from settings
-                TextButton(
-                    onClick = { viewModel.checkPermissionAndLoadApps() }, 
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) { Text("I granted it, Refresh!") }
+                TextButton(onClick = { viewModel.checkPermissionAndLoadApps() }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("I granted it, Refresh!") }
             }
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
                 when {
+                    // NEW: Render the Usage Dashboard
+                    currentSort == SortOrder.USAGE_MOST_USED -> {
+                        // Filter out apps with absolutely 0 usage to keep the list clean
+                        val activeApps = filteredApps.filter { it.usage1DayMillis > 0 }
+                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            lazyItems(activeApps) { app -> UsageRow(app) }
+                        }
+                    }
                     currentSort == SortOrder.PACKAGE_NAME && selectedCompany != null -> {
                         val companyApps = groupedApps[selectedCompany] ?: emptyList()
                         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -168,9 +164,43 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     }
 }
 
+// NEW: A specialized, beautiful layout just for the Usage tab!
+@Composable
+fun UsageRow(appInfo: AppPrivacyInfo) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Text(text = appInfo.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("1 Day", style = MaterialTheme.typography.labelSmall)
+                    Text(appInfo.usage1Day, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("3 Days", style = MaterialTheme.typography.labelSmall)
+                    Text(appInfo.usage3Days, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("1 Week", style = MaterialTheme.typography.labelSmall)
+                    Text(appInfo.usage1Week, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("1 Month", style = MaterialTheme.typography.labelSmall)
+                    Text(appInfo.usage1Month, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun CompanyCard(name: String, count: Int, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().height(120.dp).clickable(onClick = onClick), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+    Card(modifier = Modifier.fillMaxWidth().height(120.dp).clickable(onClick = onClick), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
