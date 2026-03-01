@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.model // <-- Safely lowercase
+package com.Neo.permissionauditor.model
 
 enum class RiskLevel { LOW, MEDIUM, HIGH }
 
@@ -8,13 +8,15 @@ data class AppPrivacyInfo(
     val isSystemApp: Boolean,
     
     val hasCameraAccess: Boolean,
-    val isCameraGranted: Boolean, // NEW: Is it actually enabled?
+    val isCameraGranted: Boolean,
     
     val hasLocationAccess: Boolean,
-    val isLocationGranted: Boolean, // NEW: Is it actually enabled?
+    val isLocationGranted: Boolean,
     
     val hasMicrophoneAccess: Boolean,
-    val isMicrophoneGranted: Boolean, // NEW: Is it actually enabled?
+    val isMicrophoneGranted: Boolean,
+    
+    val totalPermissionsRequested: Int, // NEW: Track total permissions
     
     val riskLevel: RiskLevel
 )
