@@ -47,13 +47,13 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     if (appInfo.hasCameraAccess) {
-                        Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}")
                     }
                     if (appInfo.hasMicrophoneAccess) {
-                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}")
                     }
                     if (appInfo.hasLocationAccess) {
-                        Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}")
+                        Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}")
                     }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
