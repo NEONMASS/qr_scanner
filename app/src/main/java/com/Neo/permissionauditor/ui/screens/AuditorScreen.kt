@@ -2,7 +2,10 @@ package com.Neo.permissionauditor.ui.screens
 
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,8 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.ui.components.AppRow
 import com.Neo.permissionauditor.model.AppPrivacyInfo
+import com.Neo.permissionauditor.utils.ExportUtils
 import com.Neo.permissionauditor.viewmodel.AuditorViewModel
 import com.Neo.permissionauditor.viewmodel.SortOrder
 
@@ -43,8 +48,10 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedCompany by remember { mutableStateOf<String?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showExportMenu by remember { mutableStateOf(false) } // NEW: Export Menu State
     
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val filteredApps = apps.filter { 
         it.appName.contains(searchQuery, ignoreCase = true) || 
@@ -56,6 +63,26 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
             val parts = appInfo.packageName.split(".")
             if (parts.size >= 2) "${parts[0]}.${parts[1]}" else appInfo.packageName
         }.toSortedMap()
+    }
+
+    // NEW: Launcher for picking where to save the CSV (Excel) file
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                ExportUtils.exportToCsv(context, uri, filteredApps)
+                Toast.makeText(context, "Excel File Saved!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // NEW: Launcher for picking where to save the PDF file
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                ExportUtils.exportToPdf(context, uri, filteredApps)
+                Toast.makeText(context, "PDF Report Saved!", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     BackHandler(enabled = selectedCompany != null) { selectedCompany = null }
@@ -72,7 +99,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                             singleLine = true
                         )
                     } else {
-                        Text(selectedCompany ?: "Permission Auditor Pro")
+                        Text(selectedCompany ?: "Permission Auditor PRO")
                     }
                 },
                 navigationIcon = {
@@ -85,14 +112,38 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 },
                 actions = {
                     if (!isSearchActive) {
+                        
+                        // NEW: Export Menu
                         Box {
-                            IconButton(onClick = { showSortMenu = true }) { Icon(Icons.Default.MoreVert, null) }
+                            IconButton(onClick = { showExportMenu = true }) { Icon(Icons.Default.Share, "Export") }
+                            DropdownMenu(expanded = showExportMenu, onDismissRequest = { showExportMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Export to Excel (.csv)") }, 
+                                    onClick = { 
+                                        showExportMenu = false
+                                        csvLauncher.launch("Auditor_Report.csv") 
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Export to PDF") }, 
+                                    onClick = { 
+                                        showExportMenu = false
+                                        pdfLauncher.launch("Auditor_Report.pdf") 
+                                    }
+                                )
+                            }
+                        }
+
+                        // Existing Sort Menu
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) { Icon(Icons.Default.MoreVert, "Sort Options") }
                             DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                                 DropdownMenuItem(text = { Text("Risk (High to Low)") }, onClick = { viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null; showSortMenu = false })
                                 DropdownMenuItem(text = { Text("Risk (Low to High)") }, onClick = { viewModel.setSortOrder(SortOrder.RISK_LOW_FIRST); selectedCompany = null; showSortMenu = false })
                                 DropdownMenuItem(text = { Text("Name (A to Z)") }, onClick = { viewModel.setSortOrder(SortOrder.APP_NAME_AZ); selectedCompany = null; showSortMenu = false })
                             }
                         }
+                        
                         IconButton(onClick = { isSearchActive = true }) { Icon(Icons.Default.Search, null) }
                         Switch(checked = showSystemApps, onCheckedChange = { viewModel.toggleSystemApps(it) }, modifier = Modifier.padding(end = 8.dp))
                     } else if (searchQuery.isNotEmpty()) {
@@ -137,17 +188,13 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 when {
                     currentSort == SortOrder.USAGE_MOST_USED -> {
                         val activeApps = filteredApps.filter { it.usage1DayMillis > 0 }
-                        // NEW: Calculate the maximum values so we know what 100% width is!
                         val max1Day = activeApps.maxOfOrNull { it.usage1DayMillis }?.coerceAtLeast(1L) ?: 1L
                         val max3Days = activeApps.maxOfOrNull { it.usage3DaysMillis }?.coerceAtLeast(1L) ?: 1L
                         val max1Week = activeApps.maxOfOrNull { it.usage1WeekMillis }?.coerceAtLeast(1L) ?: 1L
                         val max1Month = activeApps.maxOfOrNull { it.usage1MonthMillis }?.coerceAtLeast(1L) ?: 1L
 
                         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            // Pass the max values into the row to draw the graphs
-                            lazyItems(activeApps) { app -> 
-                                UsageRow(app, max1Day, max3Days, max1Week, max1Month) 
-                            }
+                            lazyItems(activeApps) { app -> UsageRow(app, max1Day, max3Days, max1Week, max1Month) }
                         }
                     }
                     currentSort == SortOrder.PACKAGE_NAME && selectedCompany != null -> {
@@ -172,7 +219,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     }
 }
 
-// NEW: The Graph-Based Usage Row
 @Composable
 fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: Long, max1Month: Long) {
     Card(
@@ -183,8 +229,6 @@ fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: L
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Text(text = appInfo.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Draw 4 distinct bar graphs!
             UsageBarGraph("Past 24 Hours", appInfo.usage1Day, appInfo.usage1DayMillis, max1Day, Color(0xFF4CAF50))
             Spacer(modifier = Modifier.height(8.dp))
             UsageBarGraph("Past 3 Days", appInfo.usage3Days, appInfo.usage3DaysMillis, max3Days, Color(0xFF2196F3))
@@ -196,12 +240,9 @@ fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: L
     }
 }
 
-// NEW: A reusable composable to draw a clean, rounded progress bar
 @Composable
 fun UsageBarGraph(label: String, timeText: String, millis: Long, maxMillis: Long, barColor: Color) {
-    // Prevent divide by zero, calculate percentage
     val progress = if (maxMillis > 0) (millis.toFloat() / maxMillis.toFloat()).coerceIn(0f, 1f) else 0f
-    
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
