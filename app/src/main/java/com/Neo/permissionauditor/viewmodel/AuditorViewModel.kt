@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.viewmodel // <-- Fixed lowercase 'p'
+package com.Neo.permissionauditor.viewmodel
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
@@ -23,7 +23,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _showSystemApps = MutableStateFlow(false)
     val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
 
-    // Explicit loading state
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -33,15 +32,14 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
     fun toggleSystemApps(show: Boolean) {
         _showSystemApps.value = show
-        loadApps() // Trigger a fresh scan when toggled
+        loadApps() 
     }
 
     private fun loadApps() {
         viewModelScope.launch(Dispatchers.IO) {
-            _isLoading.value = true // Turn on the loading spinner
+            _isLoading.value = true 
 
             val packageManager = getApplication<Application>().packageManager
-
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
             } else {
@@ -59,10 +57,15 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
                 val requestedPermissions = pack.requestedPermissions ?: emptyArray()
 
+                // NEW: Check if the permission is requested AND if it is actually granted by the user
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
-                val hasLocation = requestedPermissions.contains("android.permission.ACCESS_FINE_LOCATION") || 
-                                  requestedPermissions.contains("android.permission.ACCESS_COARSE_LOCATION")
+                val isCameraGranted = hasCamera && packageManager.checkPermission("android.permission.CAMERA", pack.packageName) == PackageManager.PERMISSION_GRANTED
+
+                val hasLocation = requestedPermissions.contains("android.permission.ACCESS_FINE_LOCATION") || requestedPermissions.contains("android.permission.ACCESS_COARSE_LOCATION")
+                val isLocationGranted = hasLocation && (packageManager.checkPermission("android.permission.ACCESS_FINE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED || packageManager.checkPermission("android.permission.ACCESS_COARSE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED)
+
                 val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
+                val isMicGranted = hasMic && packageManager.checkPermission("android.permission.RECORD_AUDIO", pack.packageName) == PackageManager.PERMISSION_GRANTED
 
                 val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
                 val riskLevel = when (sensitiveCount) {
@@ -71,23 +74,24 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     else -> RiskLevel.LOW
                 }
 
-                val appName = appInfo.loadLabel(packageManager).toString()
-
                 appList.add(
                     AppPrivacyInfo(
-                        appName = appName,
+                        appName = appInfo.loadLabel(packageManager).toString(),
                         packageName = pack.packageName,
                         isSystemApp = isSystemApp,
                         hasCameraAccess = hasCamera,
+                        isCameraGranted = isCameraGranted,
                         hasLocationAccess = hasLocation,
+                        isLocationGranted = isLocationGranted,
                         hasMicrophoneAccess = hasMic,
+                        isMicrophoneGranted = isMicGranted,
                         riskLevel = riskLevel
                     )
                 )
             }
 
             _installedApps.value = appList.sortedBy { it.riskLevel }
-            _isLoading.value = false // Turn off the loading spinner
+            _isLoading.value = false 
         }
     }
 }
