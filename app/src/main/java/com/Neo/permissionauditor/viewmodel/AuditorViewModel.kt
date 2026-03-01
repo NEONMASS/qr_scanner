@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-// NEW: Define the sorting options
-enum class SortOrder { RISK, PACKAGE_NAME, APP_NAME }
+// NEW: Expanded sorting options for the dropdown menu!
+enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,11 +32,9 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // NEW: Track the current sorting method (defaults to Risk Level)
-    private val _sortOrder = MutableStateFlow(SortOrder.RISK)
+    private val _sortOrder = MutableStateFlow(SortOrder.RISK_HIGH_FIRST)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
-    // NEW: Store the raw, unsorted list of apps in memory so we can re-sort instantly
     private var rawAppList = listOf<AppPrivacyInfo>()
 
     init {
@@ -52,7 +50,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
         _searchQuery.value = query
     }
 
-    // NEW: Function to change the sort order and instantly apply it
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
         applySorting()
@@ -60,12 +57,10 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
     private fun applySorting() {
         _installedApps.value = when (_sortOrder.value) {
-            // sortedByDescending puts HIGH risk at the very top
-            SortOrder.RISK -> rawAppList.sortedByDescending { it.riskLevel }
-            // Sort alphabetically by the underlying company code / package name (e.g. com.google...)
+            SortOrder.RISK_HIGH_FIRST -> rawAppList.sortedByDescending { it.riskLevel }
+            SortOrder.RISK_LOW_FIRST -> rawAppList.sortedBy { it.riskLevel } // NEW: Low risk at the top
+            SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
-            // Sort alphabetically by the normal app name
-            SortOrder.APP_NAME -> rawAppList.sortedBy { it.appName.lowercase() }
         }
     }
 
@@ -125,7 +120,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            // Save the raw list, sort it, and hide the loading spinner
             rawAppList = appList
             applySorting() 
             _isLoading.value = false 
