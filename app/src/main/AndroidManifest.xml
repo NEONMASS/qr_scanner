@@ -4,13 +4,12 @@
     package="com.Neo.permissionauditor">
 
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-    
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_app_logo"
-        android:roundIcon="@drawable/ic_app_logo"
+        android:icon="@mipmap/app_logo"
+        android:roundIcon="@mipmap/app_logo"
         android:label="Permission Auditor"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
