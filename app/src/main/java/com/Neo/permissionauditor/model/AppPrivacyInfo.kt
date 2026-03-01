@@ -16,7 +16,7 @@ data class AppPrivacyInfo(
     val hasMicrophoneAccess: Boolean,
     val isMicrophoneGranted: Boolean,
     
-    val totalPermissionsRequested: Int, // NEW: Track total permissions
+    val totalPermissionsRequested: Int,
     
     val riskLevel: RiskLevel
 )
