@@ -20,7 +20,7 @@ import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
 @Composable
-fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid mode flag
+fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
     val context = LocalContext.current
     var showDialog by remember { mutableStateOf(false) }
 
@@ -31,10 +31,30 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
         context.startActivity(intent)
     }
 
+    // NEW: Intent to trigger Android's official Uninstall prompt
+    val promptUninstall = {
+        val intent = Intent(Intent.ACTION_DELETE).apply {
+            data = Uri.parse("package:${appInfo.packageName}")
+        }
+        context.startActivity(intent)
+    }
+
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text(appInfo.appName) },
+            title = { 
+                Column {
+                    Text(appInfo.appName, fontWeight = FontWeight.Bold)
+                    // NEW: Bloatware identifier!
+                    if (appInfo.isSystemApp) {
+                        Text(
+                            text = "PRE-INSTALLED SYSTEM APP", 
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
             text = {
                 Column {
                     Text(
@@ -60,14 +80,35 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
                     }
                 }
             },
+            // The bottom buttons of the popup
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) { Text("Close") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    openSettings()
-                }) { Text("Edit") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // NEW: Dynamic button logic
+                    if (appInfo.isSystemApp) {
+                        // System apps get a "Disable" button that goes to settings
+                        Button(
+                            onClick = { showDialog = false; openSettings() },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Disable in Settings")
+                        }
+                    } else {
+                        // Normal apps get a direct "Uninstall" button
+                        Button(
+                            onClick = { showDialog = false; promptUninstall() },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Uninstall")
+                        }
+                        // Keep the settings teleport for normal apps too
+                        OutlinedButton(onClick = { showDialog = false; openSettings() }) {
+                            Text("Edit")
+                        }
+                    }
+                }
             }
         )
     }
@@ -75,7 +116,6 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            // NEW: If we are in grid mode, force every card to be exactly 140dp tall!
             .then(if (isGridMode) Modifier.height(140.dp) else Modifier.wrapContentHeight())
             .clickable { showDialog = true }, 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -83,7 +123,7 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize() // Forces it to fill the 140dp height in Grid mode
+                .fillMaxSize()
                 .padding(12.dp)
         ) {
             Row(
@@ -101,9 +141,7 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
                 )
                 IconButton(
                     onClick = openSettings,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(start = 4.dp)
+                    modifier = Modifier.size(24.dp).padding(start = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -137,14 +175,12 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid 
                 overflow = TextOverflow.Ellipsis
             )
 
-            // NEW: Push the badges perfectly to the bottom of the card if in Grid Mode
             if (isGridMode) {
                 Spacer(modifier = Modifier.weight(1f)) 
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // NEW: Linear Horizontal Layout for badges!
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Cam", appInfo.isCameraGranted)
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
