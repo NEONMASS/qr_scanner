@@ -72,7 +72,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                             singleLine = true
                         )
                     } else {
-                        Text(selectedCompany ?: "Permission Auditor")
+                        Text(selectedCompany ?: "Permission Auditor Pro")
                     }
                 },
                 navigationIcon = {

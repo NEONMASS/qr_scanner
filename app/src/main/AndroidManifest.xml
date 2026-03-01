@@ -10,7 +10,7 @@
         android:allowBackup="true"
         android:icon="@mipmap/app_logo"
         android:roundIcon="@mipmap/app_logo"
-        android:label="Permission Auditor"
+        android:label="Permission Auditor Pro"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
