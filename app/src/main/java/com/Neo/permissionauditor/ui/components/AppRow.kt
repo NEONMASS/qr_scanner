@@ -31,7 +31,7 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
         context.startActivity(intent)
     }
 
-    // NEW: Intent to trigger Android's official Uninstall prompt
+    // THE UNIVERSAL UNINSTALL PROMPT INTENT
     val promptUninstall = {
         val intent = Intent(Intent.ACTION_DELETE).apply {
             data = Uri.parse("package:${appInfo.packageName}")
@@ -45,141 +45,81 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
             title = { 
                 Column {
                     Text(appInfo.appName, fontWeight = FontWeight.Bold)
-                    // NEW: Bloatware identifier!
                     if (appInfo.isSystemApp) {
-                        Text(
-                            text = "PRE-INSTALLED SYSTEM APP", 
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        Text(text = "PRE-INSTALLED SYSTEM APP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                     }
                 }
             },
             text = {
                 Column {
-                    Text(
-                        text = "Total Permissions: ${appInfo.totalPermissionsRequested}", 
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // NEW: Screen Time Grid!
+                    Text("Screen Time (Active Usage):", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Past 24h:"); Text(appInfo.usage1Day, fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Past 3 Days:"); Text(appInfo.usage3Days, fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Past Week:"); Text(appInfo.usage1Week, fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Past Month:"); Text(appInfo.usage1Month, fontWeight = FontWeight.Medium)
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    if (appInfo.hasCameraAccess) {
-                        Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}")
-                    }
-                    if (appInfo.hasMicrophoneAccess) {
-                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}")
-                    }
-                    if (appInfo.hasLocationAccess) {
-                        Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}")
-                    }
+                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}") }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
                     }
                 }
             },
-            // The bottom buttons of the popup
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) { Text("Close") }
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // NEW: Dynamic button logic
-                    if (appInfo.isSystemApp) {
-                        // System apps get a "Disable" button that goes to settings
-                        Button(
-                            onClick = { showDialog = false; openSettings() },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Disable in Settings")
-                        }
-                    } else {
-                        // Normal apps get a direct "Uninstall" button
-                        Button(
-                            onClick = { showDialog = false; promptUninstall() },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Uninstall")
-                        }
-                        // Keep the settings teleport for normal apps too
-                        OutlinedButton(onClick = { showDialog = false; openSettings() }) {
-                            Text("Edit")
-                        }
+                    // Both System and Normal apps now get the Universal Prompt!
+                    Button(
+                        onClick = { showDialog = false; promptUninstall() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(if (appInfo.isSystemApp) "Uninstall / Disable" else "Uninstall")
                     }
+                    OutlinedButton(onClick = { showDialog = false; openSettings() }) { Text("Settings") }
                 }
             }
         )
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (isGridMode) Modifier.height(140.dp) else Modifier.wrapContentHeight())
-            .clickable { showDialog = true }, 
+        modifier = Modifier.fillMaxWidth().then(if (isGridMode) Modifier.height(140.dp) else Modifier.wrapContentHeight()).clickable { showDialog = true }, 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = appInfo.appName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = openSettings,
-                    modifier = Modifier.size(24.dp).padding(start = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+        Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Text(text = appInfo.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                IconButton(onClick = openSettings, modifier = Modifier.size(24.dp).padding(start = 4.dp)) {
+                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.primary)
                 }
             }
-
             Spacer(modifier = Modifier.height(4.dp))
-
-            val riskColor = when (appInfo.riskLevel) {
-                RiskLevel.HIGH -> Color.Red
-                RiskLevel.MEDIUM -> Color(0xFFFFA500)
-                RiskLevel.LOW -> Color.Green
-            }
-            Text(
-                text = "${appInfo.riskLevel.name} RISK",
-                color = riskColor,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
-            )
-
+            val riskColor = when (appInfo.riskLevel) { RiskLevel.HIGH -> Color.Red; RiskLevel.MEDIUM -> Color(0xFFFFA500); RiskLevel.LOW -> Color.Green }
+            Text(text = "${appInfo.riskLevel.name} RISK", color = riskColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(2.dp))
+            Text(text = appInfo.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
 
-            Text(
-                text = appInfo.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            if (isGridMode) {
-                Spacer(modifier = Modifier.weight(1f)) 
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            if (isGridMode) Spacer(modifier = Modifier.weight(1f)) else Spacer(modifier = Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Cam", appInfo.isCameraGranted)
@@ -194,13 +134,7 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
 fun PermissionBadge(label: String, isGranted: Boolean) {
     val bgColor = if (isGranted) Color(0xFF4CAF50).copy(alpha = 0.2f) else MaterialTheme.colorScheme.errorContainer
     val textColor = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onErrorContainer
-
     Surface(color = bgColor, shape = MaterialTheme.shapes.small) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = textColor
-        )
+        Text(text = label, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = textColor)
     }
 }
