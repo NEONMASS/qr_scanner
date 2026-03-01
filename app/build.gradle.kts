@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.yourname.permissionauditor"
+    namespace = "com.Neo.permissionauditor"
     compileSdk = 34 // Compiling for Android 14
 
     defaultConfig {
-        applicationId = "com.yourname.permissionauditor"
+        applicationId = "com.Neo.permissionauditor"
         minSdk = 26 // Android 8.0
         targetSdk = 34
         versionCode = 1
@@ -21,7 +21,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
