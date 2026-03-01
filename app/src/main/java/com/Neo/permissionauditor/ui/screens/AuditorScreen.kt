@@ -10,12 +10,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,7 +107,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 NavigationBar {
                     NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Apps") }, selected = currentSort != SortOrder.PACKAGE_NAME && currentSort != SortOrder.USAGE_MOST_USED, onClick = { if (currentSort == SortOrder.PACKAGE_NAME || currentSort == SortOrder.USAGE_MOST_USED) viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null })
                     NavigationBarItem(icon = { Icon(Icons.Default.Build, null) }, label = { Text("Companies") }, selected = currentSort == SortOrder.PACKAGE_NAME, onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME) })
-                    // NEW: Usage Tab!
                     NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Usage") }, selected = currentSort == SortOrder.USAGE_MOST_USED, onClick = { viewModel.setSortOrder(SortOrder.USAGE_MOST_USED); selectedCompany = null })
                 }
             }
@@ -134,12 +135,19 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
                 when {
-                    // NEW: Render the Usage Dashboard
                     currentSort == SortOrder.USAGE_MOST_USED -> {
-                        // Filter out apps with absolutely 0 usage to keep the list clean
                         val activeApps = filteredApps.filter { it.usage1DayMillis > 0 }
+                        // NEW: Calculate the maximum values so we know what 100% width is!
+                        val max1Day = activeApps.maxOfOrNull { it.usage1DayMillis }?.coerceAtLeast(1L) ?: 1L
+                        val max3Days = activeApps.maxOfOrNull { it.usage3DaysMillis }?.coerceAtLeast(1L) ?: 1L
+                        val max1Week = activeApps.maxOfOrNull { it.usage1WeekMillis }?.coerceAtLeast(1L) ?: 1L
+                        val max1Month = activeApps.maxOfOrNull { it.usage1MonthMillis }?.coerceAtLeast(1L) ?: 1L
+
                         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            lazyItems(activeApps) { app -> UsageRow(app) }
+                            // Pass the max values into the row to draw the graphs
+                            lazyItems(activeApps) { app -> 
+                                UsageRow(app, max1Day, max3Days, max1Week, max1Month) 
+                            }
                         }
                     }
                     currentSort == SortOrder.PACKAGE_NAME && selectedCompany != null -> {
@@ -164,37 +172,48 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     }
 }
 
-// NEW: A specialized, beautiful layout just for the Usage tab!
+// NEW: The Graph-Based Usage Row
 @Composable
-fun UsageRow(appInfo: AppPrivacyInfo) {
+fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: Long, max1Month: Long) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(text = appInfo.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = appInfo.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
             
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("1 Day", style = MaterialTheme.typography.labelSmall)
-                    Text(appInfo.usage1Day, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("3 Days", style = MaterialTheme.typography.labelSmall)
-                    Text(appInfo.usage3Days, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("1 Week", style = MaterialTheme.typography.labelSmall)
-                    Text(appInfo.usage1Week, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("1 Month", style = MaterialTheme.typography.labelSmall)
-                    Text(appInfo.usage1Month, fontWeight = FontWeight.Bold)
-                }
-            }
+            // Draw 4 distinct bar graphs!
+            UsageBarGraph("Past 24 Hours", appInfo.usage1Day, appInfo.usage1DayMillis, max1Day, Color(0xFF4CAF50))
+            Spacer(modifier = Modifier.height(8.dp))
+            UsageBarGraph("Past 3 Days", appInfo.usage3Days, appInfo.usage3DaysMillis, max3Days, Color(0xFF2196F3))
+            Spacer(modifier = Modifier.height(8.dp))
+            UsageBarGraph("Past Week", appInfo.usage1Week, appInfo.usage1WeekMillis, max1Week, Color(0xFFFF9800))
+            Spacer(modifier = Modifier.height(8.dp))
+            UsageBarGraph("Past Month", appInfo.usage1Month, appInfo.usage1MonthMillis, max1Month, Color(0xFFE91E63))
         }
+    }
+}
+
+// NEW: A reusable composable to draw a clean, rounded progress bar
+@Composable
+fun UsageBarGraph(label: String, timeText: String, millis: Long, maxMillis: Long, barColor: Color) {
+    // Prevent divide by zero, calculate percentage
+    val progress = if (maxMillis > 0) (millis.toFloat() / maxMillis.toFloat()).coerceIn(0f, 1f) else 0f
+    
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+            Text(text = timeText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = barColor,
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+        )
     }
 }
 

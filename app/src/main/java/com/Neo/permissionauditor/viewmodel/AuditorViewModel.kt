@@ -96,8 +96,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
             val app = getApplication<Application>()
             val packageManager = app.packageManager
-            
-            // THE FIX: Changed to USAGE_STATS_SERVICE
             val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val now = System.currentTimeMillis()
             
@@ -136,7 +134,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
                 }
 
-                val raw1DayMillis = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
+                // NEW: Calculate raw millis for all four timeframes
+                val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
+                val raw3Days = stats3Days[pack.packageName]?.totalTimeInForeground ?: 0L
+                val raw1Week = stats1Week[pack.packageName]?.totalTimeInForeground ?: 0L
+                val raw1Month = stats1Month[pack.packageName]?.totalTimeInForeground ?: 0L
 
                 appList.add(
                     AppPrivacyInfo(
@@ -150,11 +152,14 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
                         totalPermissionsRequested = totalPerms,
-                        usage1Day = formatMillis(raw1DayMillis),
-                        usage3Days = formatMillis(stats3Days[pack.packageName]?.totalTimeInForeground),
-                        usage1Week = formatMillis(stats1Week[pack.packageName]?.totalTimeInForeground),
-                        usage1Month = formatMillis(stats1Month[pack.packageName]?.totalTimeInForeground),
-                        usage1DayMillis = raw1DayMillis,
+                        usage1Day = formatMillis(raw1Day),
+                        usage3Days = formatMillis(raw3Days),
+                        usage1Week = formatMillis(raw1Week),
+                        usage1Month = formatMillis(raw1Month),
+                        usage1DayMillis = raw1Day,
+                        usage3DaysMillis = raw3Days, // Pass them in!
+                        usage1WeekMillis = raw1Week,
+                        usage1MonthMillis = raw1Month,
                         riskLevel = riskLevel
                     )
                 )
