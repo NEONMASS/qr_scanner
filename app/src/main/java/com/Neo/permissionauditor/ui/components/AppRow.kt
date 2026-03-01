@@ -31,14 +31,6 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
         context.startActivity(intent)
     }
 
-    // THE UNIVERSAL UNINSTALL PROMPT INTENT
-    val promptUninstall = {
-        val intent = Intent(Intent.ACTION_DELETE).apply {
-            data = Uri.parse("package:${appInfo.packageName}")
-        }
-        context.startActivity(intent)
-    }
-
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -54,30 +46,12 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 Column {
                     Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // NEW: Screen Time Grid!
-                    Text("Screen Time (Active Usage):", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Past 24h:"); Text(appInfo.usage1Day, fontWeight = FontWeight.Medium)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Past 3 Days:"); Text(appInfo.usage3Days, fontWeight = FontWeight.Medium)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Past Week:"); Text(appInfo.usage1Week, fontWeight = FontWeight.Medium)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Past Month:"); Text(appInfo.usage1Month, fontWeight = FontWeight.Medium)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
                     Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}") }
-                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}") }
-                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}") }
+                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}") }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
                     }
@@ -87,16 +61,8 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 TextButton(onClick = { showDialog = false }) { Text("Close") }
             },
             dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Both System and Normal apps now get the Universal Prompt!
-                    Button(
-                        onClick = { showDialog = false; promptUninstall() },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text(if (appInfo.isSystemApp) "Uninstall / Disable" else "Uninstall")
-                    }
-                    OutlinedButton(onClick = { showDialog = false; openSettings() }) { Text("Settings") }
-                }
+                // CLEANED UP: Just the Settings button remains!
+                OutlinedButton(onClick = { showDialog = false; openSettings() }) { Text("Open Settings") }
             }
         )
     }
