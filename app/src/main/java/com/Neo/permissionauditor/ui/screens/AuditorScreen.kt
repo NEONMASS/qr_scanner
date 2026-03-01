@@ -1,23 +1,22 @@
 package com.Neo.permissionauditor.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -36,6 +35,9 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     val currentSort by viewModel.sortOrder.collectAsState()
 
     var isSearchActive by remember { mutableStateOf(false) }
+    
+    // NEW: Track which company is currently selected for the "Drill-down" view
+    var selectedCompany by remember { mutableStateOf<String?>(null) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -52,46 +54,37 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         }.toSortedMap()
     }
 
+    // NEW: Handle the physical back button on the phone
+    BackHandler(enabled = selectedCompany != null) {
+        selectedCompany = null
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(modifier = Modifier.width(300.dp)) {
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Sort Apps By",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
+                Text(text = "Sort Apps By", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                HorizontalDivider()
 
                 NavigationDrawerItem(
-                    label = { Text("Risk Level (Highest First)") },
+                    label = { Text("Risk Level (List)") },
                     selected = currentSort == SortOrder.RISK,
-                    onClick = {
-                        viewModel.setSortOrder(SortOrder.RISK)
-                        scope.launch { drawerState.close() }
-                    },
+                    onClick = { viewModel.setSortOrder(SortOrder.RISK); selectedCompany = null; scope.launch { drawerState.close() } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
                 NavigationDrawerItem(
-                    label = { Text("Company Grouping (Grid Layout)") },
+                    label = { Text("Company Grouping (Grid)") },
                     selected = currentSort == SortOrder.PACKAGE_NAME,
-                    onClick = {
-                        viewModel.setSortOrder(SortOrder.PACKAGE_NAME)
-                        scope.launch { drawerState.close() }
-                    },
+                    onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME); scope.launch { drawerState.close() } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
                 NavigationDrawerItem(
                     label = { Text("App Name (A-Z)") },
                     selected = currentSort == SortOrder.APP_NAME,
-                    onClick = {
-                        viewModel.setSortOrder(SortOrder.APP_NAME)
-                        scope.launch { drawerState.close() }
-                    },
+                    onClick = { viewModel.setSortOrder(SortOrder.APP_NAME); selectedCompany = null; scope.launch { drawerState.close() } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
             }
@@ -99,133 +92,90 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     ) {
         Scaffold(
             topBar = {
-                if (isSearchActive) {
-                    TopAppBar(
-                        title = {
+                TopAppBar(
+                    title = {
+                        if (isSearchActive) {
                             TextField(
                                 value = searchQuery,
                                 onValueChange = { viewModel.updateSearchQuery(it) },
-                                placeholder = { Text("Search apps...") },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    disabledContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                ),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                                placeholder = { Text("Search...") },
+                                colors = TextFieldDefaults.colors(containerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                                singleLine = true
                             )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { 
-                                isSearchActive = false
-                                viewModel.updateSearchQuery("") 
-                            }) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Close Search")
-                            }
-                        },
-                        actions = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear Text")
-                                }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                } else {
-                    TopAppBar(
-                        title = { 
-                            Column {
-                                Text("Permission Auditor v2")
-                                if (!isLoading) {
-                                    Text(
-                                        text = "${filteredApps.size} apps found",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = "Open Menu")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        actions = {
-                            IconButton(onClick = { isSearchActive = true }) {
-                                Icon(Icons.Default.Search, contentDescription = "Open Search")
-                            }
-                            Switch(
-                                checked = showSystemApps,
-                                onCheckedChange = { viewModel.toggleSystemApps(it) },
-                                modifier = Modifier.padding(end = 8.dp)
+                        } else {
+                            Text(selectedCompany ?: "Permission Auditor")
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (isSearchActive) { isSearchActive = false; viewModel.updateSearchQuery("") }
+                            else if (selectedCompany != null) { selectedCompany = null }
+                            else { scope.launch { drawerState.open() } }
+                        }) {
+                            Icon(
+                                imageVector = if (isSearchActive || selectedCompany != null) Icons.Default.ArrowBack else Icons.Default.Menu,
+                                contentDescription = null
                             )
                         }
-                    )
-                }
+                    },
+                    actions = {
+                        if (!isSearchActive) {
+                            IconButton(onClick = { isSearchActive = true }) { Icon(Icons.Default.Search, null) }
+                            Switch(checked = showSystemApps, onCheckedChange = { viewModel.toggleSystemApps(it) }, modifier = Modifier.padding(end = 8.dp))
+                        } else if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) { Icon(Icons.Default.Clear, null) }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                )
             }
         ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
+            Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
                 if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
-                    // NEW: Conditional UI rendering!
-                    if (currentSort == SortOrder.PACKAGE_NAME) {
-                        // 2-COLUMN GRID VIEW (Company Grouping)
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            groupedApps.forEach { (companyName, companyApps) ->
-                                item(span = { GridItemSpan(2) }) {
-                                    Text(
-                                        text = companyName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
-                                    )
-                                }
-                                gridItems(companyApps) { appInfo ->
-                                    AppRow(appInfo = appInfo, isGridMode = true) // Pass flag to lock size
+                    when {
+                        // VIEW 1: Specific Company Apps (The "Drill-down" list)
+                        currentSort == SortOrder.PACKAGE_NAME && selectedCompany != null -> {
+                            val companyApps = groupedApps[selectedCompany] ?: emptyList()
+                            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                lazyItems(companyApps) { AppRow(it, isGridMode = false) }
+                            }
+                        }
+
+                        // VIEW 2: Company Grid (The "Categories" view)
+                        currentSort == SortOrder.PACKAGE_NAME -> {
+                            LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                gridItems(groupedApps.keys.toList()) { company ->
+                                    CompanyCard(company, groupedApps[company]?.size ?: 0) { selectedCompany = company }
                                 }
                             }
                         }
-                    } else {
-                        // STANDARD LIST VIEW (Risk & App Name Sorting)
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            lazyItems(filteredApps) { appInfo ->
-                                AppRow(appInfo = appInfo, isGridMode = false) // Standard height
+
+                        // VIEW 3: Standard List (Risk / Name)
+                        else -> {
+                            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                lazyItems(filteredApps) { AppRow(it, isGridMode = false) }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CompanyCard(name: String, count: Int, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().height(120.dp).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(8.dp))
+            Text(text = name, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
+            Text(text = "$count Apps", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
