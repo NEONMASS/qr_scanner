@@ -1,5 +1,9 @@
 package com.Neo.permissionauditor.viewmodel
+
+import android.app.AppOpsManager
 import android.app.Application
+import android.app.usage.UsageStatsManager
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -14,7 +18,6 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-// NEW: Expanded sorting options for the dropdown menu!
 enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,15 +37,19 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _sortOrder = MutableStateFlow(SortOrder.RISK_HIGH_FIRST)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
+    // NEW: Track if the user has granted the special Usage Access permission
+    private val _hasUsagePermission = MutableStateFlow(false)
+    val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
+
     private var rawAppList = listOf<AppPrivacyInfo>()
 
     init {
-        loadApps()
+        checkPermissionAndLoadApps()
     }
 
     fun toggleSystemApps(show: Boolean) {
         _showSystemApps.value = show
-        loadApps() 
+        checkPermissionAndLoadApps() 
     }
 
     fun updateSearchQuery(query: String) {
@@ -54,20 +61,52 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
         applySorting()
     }
 
+    // Expose a public way to refresh if the user returns from settings
+    fun checkPermissionAndLoadApps() {
+        val appOps = getApplication<Application>().getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getApplication<Application>().packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getApplication<Application>().packageName)
+        }
+        
+        _hasUsagePermission.value = (mode == AppOpsManager.MODE_ALLOWED)
+        loadApps()
+    }
+
     private fun applySorting() {
         _installedApps.value = when (_sortOrder.value) {
             SortOrder.RISK_HIGH_FIRST -> rawAppList.sortedByDescending { it.riskLevel }
-            SortOrder.RISK_LOW_FIRST -> rawAppList.sortedBy { it.riskLevel } // NEW: Low risk at the top
+            SortOrder.RISK_LOW_FIRST -> rawAppList.sortedBy { it.riskLevel }
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
         }
+    }
+
+    private fun formatMillis(millis: Long?): String {
+        if (millis == null || millis == 0L) return "0m"
+        val hours = millis / (1000 * 60 * 60)
+        val minutes = (millis / (1000 * 60)) % 60
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 
     private fun loadApps() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true 
 
-            val packageManager = getApplication<Application>().packageManager
+            val app = getApplication<Application>()
+            val packageManager = app.packageManager
+            
+            // Query usage stats if permission is granted
+            val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val now = System.currentTimeMillis()
+            
+            val stats1Day = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24), now) else emptyMap()
+            val stats3Days = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 3), now) else emptyMap()
+            val stats1Week = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 7), now) else emptyMap()
+            val stats1Month = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 30), now) else emptyMap()
+
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
             } else {
@@ -114,6 +153,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
                         totalPermissionsRequested = totalPerms,
+                        // Inject the formatted usage times!
+                        usage1Day = formatMillis(stats1Day[pack.packageName]?.totalTimeInForeground),
+                        usage3Days = formatMillis(stats3Days[pack.packageName]?.totalTimeInForeground),
+                        usage1Week = formatMillis(stats1Week[pack.packageName]?.totalTimeInForeground),
+                        usage1Month = formatMillis(stats1Month[pack.packageName]?.totalTimeInForeground),
                         riskLevel = riskLevel
                     )
                 )
