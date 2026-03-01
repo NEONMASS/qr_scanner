@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Menu // <-- NEW: Import for the Menu Icon
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +27,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
     val isLoading by viewModel.isLoading.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // NEW: Memory to track if the search bar is currently open
     var isSearchActive by remember { mutableStateOf(false) }
 
     val filteredApps = apps.filter { 
@@ -36,7 +36,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
 
     Scaffold(
         topBar = {
-            // NEW: Morph the Top Bar based on whether 'isSearchActive' is true or false
             if (isSearchActive) {
                 // THE EXPANDED SEARCH BAR
                 TopAppBar(
@@ -45,7 +44,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                             value = searchQuery,
                             onValueChange = { viewModel.updateSearchQuery(it) },
                             placeholder = { Text("Search apps...") },
-                            // Make the TextField completely transparent so it blends perfectly into the App Bar
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -59,7 +57,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                     },
                     navigationIcon = {
                         IconButton(onClick = { 
-                            // Close search and clear the text when hitting the back arrow
                             isSearchActive = false
                             viewModel.updateSearchQuery("") 
                         }) {
@@ -93,16 +90,22 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                             }
                         }
                     },
+                    // NEW: The Hamburger Menu Icon on the far left!
+                    navigationIcon = {
+                        IconButton(onClick = { 
+                            // TODO: Tell the menu what to do when clicked!
+                        }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Open Menu")
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     actions = {
-                        // The Search Magnifying Glass Icon
                         IconButton(onClick = { isSearchActive = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Open Search")
                         }
-                        // The System App Toggle Switch
                         Switch(
                             checked = showSystemApps,
                             onCheckedChange = { viewModel.toggleSystemApps(it) },
@@ -118,8 +121,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // The old OutlinedTextField we put here is completely gone now!
-
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
