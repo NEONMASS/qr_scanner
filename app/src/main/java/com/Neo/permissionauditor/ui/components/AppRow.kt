@@ -1,4 +1,4 @@
-package com.Neo.permissionauditor.ui.components
+package com.Neo.permissionauditor.ui.components // <-- Fixed lowercase 'p'
 
 import android.content.Intent
 import android.net.Uri
@@ -17,15 +17,14 @@ import com.Neo.permissionauditor.model.RiskLevel
 
 @Composable
 fun AppRow(appInfo: AppPrivacyInfo) {
-    // NEW: Grab the screen context so we can launch Android settings
+    // Grab the screen context so we can launch Android settings
     val context = LocalContext.current
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            // NEW: Make the card clickable
+            // Make the card clickable to teleport to settings
             .clickable {
-                // Create an intent to open the specific App Info settings page
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = Uri.parse("package:${appInfo.packageName}")
                 }
@@ -46,30 +45,30 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                
+
                 val riskColor = when (appInfo.riskLevel) {
                     RiskLevel.HIGH -> Color.Red
                     RiskLevel.MEDIUM -> Color(0xFFFFA500) // Orange
                     RiskLevel.LOW -> Color.Green
                 }
-                
+
                 Text(
                     text = appInfo.riskLevel.name,
                     color = riskColor,
                     style = MaterialTheme.typography.labelMedium
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = appInfo.packageName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Camera")
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Microphone")
