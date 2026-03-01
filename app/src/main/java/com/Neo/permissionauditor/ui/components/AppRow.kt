@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
@@ -36,25 +37,23 @@ fun AppRow(appInfo: AppPrivacyInfo) {
             title = { Text(appInfo.appName) },
             text = {
                 Column {
-                    // NEW: Display the total number of permissions requested
                     Text(
                         text = "Total Permissions: ${appInfo.totalPermissionsRequested}", 
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     if (appInfo.hasCameraAccess) {
-                        Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}")
+                        Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}")
                     }
                     if (appInfo.hasMicrophoneAccess) {
-                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}")
+                        Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}")
                     }
                     if (appInfo.hasLocationAccess) {
-                        Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}")
+                        Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}")
                     }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
@@ -68,7 +67,7 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                 TextButton(onClick = {
                     showDialog = false
                     openSettings()
-                }) { Text("Edit in Settings") }
+                }) { Text("Edit") }
             }
         )
     }
@@ -80,58 +79,69 @@ fun AppRow(appInfo: AppPrivacyInfo) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically 
+                .padding(12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = appInfo.appName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    val riskColor = when (appInfo.riskLevel) {
-                        RiskLevel.HIGH -> Color.Red
-                        RiskLevel.MEDIUM -> Color(0xFFFFA500)
-                        RiskLevel.LOW -> Color.Green
-                    }
-
-                    Text(
-                        text = appInfo.riskLevel.name,
-                        color = riskColor,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
                 Text(
-                    text = appInfo.packageName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    text = appInfo.appName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (appInfo.hasCameraAccess) PermissionBadge("Camera", appInfo.isCameraGranted)
-                    if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
-                    if (appInfo.hasLocationAccess) PermissionBadge("Location", appInfo.isLocationGranted)
+                IconButton(
+                    onClick = openSettings,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .padding(start = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
-            IconButton(onClick = openSettings) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Open App Settings",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val riskColor = when (appInfo.riskLevel) {
+                RiskLevel.HIGH -> Color.Red
+                RiskLevel.MEDIUM -> Color(0xFFFFA500)
+                RiskLevel.LOW -> Color.Green
+            }
+            Text(
+                text = "${appInfo.riskLevel.name} RISK",
+                color = riskColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = appInfo.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Stacked badges to fit perfectly in the smaller grid cards
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (appInfo.hasCameraAccess) PermissionBadge("Cam", appInfo.isCameraGranted)
+                if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
+                if (appInfo.hasLocationAccess) PermissionBadge("Loc", appInfo.isLocationGranted)
             }
         }
     }
@@ -142,10 +152,7 @@ fun PermissionBadge(label: String, isGranted: Boolean) {
     val bgColor = if (isGranted) Color(0xFF4CAF50).copy(alpha = 0.2f) else MaterialTheme.colorScheme.errorContainer
     val textColor = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onErrorContainer
 
-    Surface(
-        color = bgColor,
-        shape = MaterialTheme.shapes.small
-    ) {
+    Surface(color = bgColor, shape = MaterialTheme.shapes.small) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
