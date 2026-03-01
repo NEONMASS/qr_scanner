@@ -23,6 +23,10 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _showSystemApps = MutableStateFlow(false)
     val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
 
+    // NEW: State to hold the current search text
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -33,6 +37,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     fun toggleSystemApps(show: Boolean) {
         _showSystemApps.value = show
         loadApps() 
+    }
+
+    // NEW: Function to update the search text as you type
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     private fun loadApps() {
@@ -56,8 +65,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 if (isSystemApp && !_showSystemApps.value) continue
 
                 val requestedPermissions = pack.requestedPermissions ?: emptyArray()
-                
-                // NEW: Get the total count of requested permissions
                 val totalPerms = requestedPermissions.size
 
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
@@ -87,7 +94,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         isLocationGranted = isLocationGranted,
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
-                        totalPermissionsRequested = totalPerms, // Pass it to the model
+                        totalPermissionsRequested = totalPerms,
                         riskLevel = riskLevel
                     )
                 )
