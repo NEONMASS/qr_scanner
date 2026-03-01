@@ -23,18 +23,23 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _showSystemApps = MutableStateFlow(false)
     val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
 
+    // NEW: Explicit loading state
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     init {
         loadApps()
     }
 
     fun toggleSystemApps(show: Boolean) {
         _showSystemApps.value = show
-        loadApps()
+        loadApps() // Trigger a fresh scan when toggled
     }
 
     private fun loadApps() {
-        // Run on a background thread so the UI spinner stays perfectly smooth
         viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true // Turn on the loading spinner
+
             val packageManager = getApplication<Application>().packageManager
             
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -50,7 +55,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 val appInfo = pack.applicationInfo ?: continue
                 val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 
-                // Skip system apps if the toggle is turned off
                 if (isSystemApp && !_showSystemApps.value) continue
 
                 val requestedPermissions = pack.requestedPermissions ?: emptyArray()
@@ -82,8 +86,8 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            // Sort apps: HIGH risk at the top, LOW risk at the bottom
             _installedApps.value = appList.sortedBy { it.riskLevel }
+            _isLoading.value = false // Turn off the loading spinner
         }
     }
 }
