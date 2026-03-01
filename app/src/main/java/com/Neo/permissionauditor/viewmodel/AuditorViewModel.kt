@@ -42,23 +42,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
     private var rawAppList = listOf<AppPrivacyInfo>()
 
-    init {
-        checkPermissionAndLoadApps()
-    }
+    init { checkPermissionAndLoadApps() }
 
-    fun toggleSystemApps(show: Boolean) {
-        _showSystemApps.value = show
-        checkPermissionAndLoadApps() 
-    }
-
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun setSortOrder(order: SortOrder) {
-        _sortOrder.value = order
-        applySorting()
-    }
+    fun toggleSystemApps(show: Boolean) { _showSystemApps.value = show; checkPermissionAndLoadApps() }
+    fun updateSearchQuery(query: String) { _searchQuery.value = query }
+    fun setSortOrder(order: SortOrder) { _sortOrder.value = order; applySorting() }
 
     fun checkPermissionAndLoadApps() {
         val appOps = getApplication<Application>().getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -68,7 +56,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             @Suppress("DEPRECATION")
             appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getApplication<Application>().packageName)
         }
-        
         _hasUsagePermission.value = (mode == AppOpsManager.MODE_ALLOWED)
         loadApps()
     }
@@ -93,7 +80,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private fun loadApps() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true 
-
             val app = getApplication<Application>()
             val packageManager = app.packageManager
             val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -129,12 +115,14 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
                 val isMicGranted = hasMic && packageManager.checkPermission("android.permission.RECORD_AUDIO", pack.packageName) == PackageManager.PERMISSION_GRANTED
 
+                // Check for silent internet access!
+                val hasInternet = requestedPermissions.contains("android.permission.INTERNET")
+
                 val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
                 val riskLevel = when (sensitiveCount) {
                     3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
                 }
 
-                // NEW: Calculate raw millis for all four timeframes
                 val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
                 val raw3Days = stats3Days[pack.packageName]?.totalTimeInForeground ?: 0L
                 val raw1Week = stats1Week[pack.packageName]?.totalTimeInForeground ?: 0L
@@ -151,20 +139,20 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         isLocationGranted = isLocationGranted,
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
+                        hasInternetAccess = hasInternet, 
                         totalPermissionsRequested = totalPerms,
                         usage1Day = formatMillis(raw1Day),
                         usage3Days = formatMillis(raw3Days),
                         usage1Week = formatMillis(raw1Week),
                         usage1Month = formatMillis(raw1Month),
                         usage1DayMillis = raw1Day,
-                        usage3DaysMillis = raw3Days, // Pass them in!
+                        usage3DaysMillis = raw3Days,
                         usage1WeekMillis = raw1Week,
                         usage1MonthMillis = raw1Month,
                         riskLevel = riskLevel
                     )
                 )
             }
-
             rawAppList = appList
             applySorting() 
             _isLoading.value = false 

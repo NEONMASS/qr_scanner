@@ -46,24 +46,30 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 Column {
                     Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Sensitive Status:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
                     
-                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}") }
-                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}") }
-                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}") }
+                    // NEW: The Secret Internet Warning
+                    Text("Network Status:", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (appInfo.hasInternetAccess) {
+                        Text("🌐 Can silently connect to the internet.", color = Color(0xFF1976D2), fontWeight = FontWeight.Medium)
+                    } else {
+                        Text("🚫 100% Offline App. Safe.", color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Sensitive Status:", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}") }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Close") }
-            },
-            dismissButton = {
-                // CLEANED UP: Just the Settings button remains!
-                OutlinedButton(onClick = { showDialog = false; openSettings() }) { Text("Open Settings") }
-            }
+            confirmButton = { TextButton(onClick = { showDialog = false }) { Text("Close") } },
+            dismissButton = { OutlinedButton(onClick = { showDialog = false; openSettings() }) { Text("Open Settings") } }
         )
     }
 
@@ -91,6 +97,13 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Cam", appInfo.isCameraGranted)
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
                 if (appInfo.hasLocationAccess) PermissionBadge("Loc", appInfo.isLocationGranted)
+                
+                // NEW: The Web Badge
+                if (appInfo.hasInternetAccess) {
+                    Surface(color = Color(0xFF1976D2).copy(alpha = 0.2f), shape = MaterialTheme.shapes.small) {
+                        Text("Web", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color(0xFF1565C0))
+                    }
+                }
             }
         }
     }
