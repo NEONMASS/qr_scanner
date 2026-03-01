@@ -18,7 +18,8 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME }
+// NEW: Added USAGE_MOST_USED to the options
+enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -37,7 +38,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _sortOrder = MutableStateFlow(SortOrder.RISK_HIGH_FIRST)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
-    // NEW: Track if the user has granted the special Usage Access permission
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
 
@@ -61,7 +61,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
         applySorting()
     }
 
-    // Expose a public way to refresh if the user returns from settings
     fun checkPermissionAndLoadApps() {
         val appOps = getApplication<Application>().getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -81,6 +80,8 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             SortOrder.RISK_LOW_FIRST -> rawAppList.sortedBy { it.riskLevel }
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
+            // NEW: Sort by most used apps first!
+            SortOrder.USAGE_MOST_USED -> rawAppList.sortedByDescending { it.usage1DayMillis } 
         }
     }
 
@@ -97,9 +98,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
             val app = getApplication<Application>()
             val packageManager = app.packageManager
-            
-            // Query usage stats if permission is granted
-            val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val usageStatsManager = app.getSystemService(Context.USAGE_SERVICE) as UsageStatsManager
             val now = System.currentTimeMillis()
             
             val stats1Day = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24), now) else emptyMap()
@@ -127,19 +126,17 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
                 val hasCamera = requestedPermissions.contains("android.permission.CAMERA")
                 val isCameraGranted = hasCamera && packageManager.checkPermission("android.permission.CAMERA", pack.packageName) == PackageManager.PERMISSION_GRANTED
-
                 val hasLocation = requestedPermissions.contains("android.permission.ACCESS_FINE_LOCATION") || requestedPermissions.contains("android.permission.ACCESS_COARSE_LOCATION")
                 val isLocationGranted = hasLocation && (packageManager.checkPermission("android.permission.ACCESS_FINE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED || packageManager.checkPermission("android.permission.ACCESS_COARSE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED)
-
                 val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
                 val isMicGranted = hasMic && packageManager.checkPermission("android.permission.RECORD_AUDIO", pack.packageName) == PackageManager.PERMISSION_GRANTED
 
                 val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
                 val riskLevel = when (sensitiveCount) {
-                    3 -> RiskLevel.HIGH
-                    1, 2 -> RiskLevel.MEDIUM
-                    else -> RiskLevel.LOW
+                    3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
                 }
+
+                val raw1DayMillis = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
 
                 appList.add(
                     AppPrivacyInfo(
@@ -153,11 +150,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
                         totalPermissionsRequested = totalPerms,
-                        // Inject the formatted usage times!
-                        usage1Day = formatMillis(stats1Day[pack.packageName]?.totalTimeInForeground),
+                        usage1Day = formatMillis(raw1DayMillis),
                         usage3Days = formatMillis(stats3Days[pack.packageName]?.totalTimeInForeground),
                         usage1Week = formatMillis(stats1Week[pack.packageName]?.totalTimeInForeground),
                         usage1Month = formatMillis(stats1Month[pack.packageName]?.totalTimeInForeground),
+                        usage1DayMillis = raw1DayMillis, // Store raw number for sorting
                         riskLevel = riskLevel
                     )
                 )
