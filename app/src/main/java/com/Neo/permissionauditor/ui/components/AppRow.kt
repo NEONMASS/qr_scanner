@@ -160,4 +160,4 @@ fun PermissionBadge(label: String, isGranted: Boolean) {
             color = textColor
         )
     }
-}
+} 
