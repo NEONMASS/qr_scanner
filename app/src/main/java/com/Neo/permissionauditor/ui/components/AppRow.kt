@@ -1,10 +1,15 @@
 package com.Neo.permissionauditor.ui.components
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.Neo.permissionauditor.model.AppPrivacyInfo
@@ -12,8 +17,20 @@ import com.Neo.permissionauditor.model.RiskLevel
 
 @Composable
 fun AppRow(appInfo: AppPrivacyInfo) {
+    // NEW: Grab the screen context so we can launch Android settings
+    val context = LocalContext.current
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // NEW: Make the card clickable
+            .clickable {
+                // Create an intent to open the specific App Info settings page
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${appInfo.packageName}")
+                }
+                context.startActivity(intent)
+            },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -30,7 +47,6 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                     fontWeight = FontWeight.Bold
                 )
                 
-                // This 'when' error goes away once RiskLevel is imported successfully!
                 val riskColor = when (appInfo.riskLevel) {
                     RiskLevel.HIGH -> Color.Red
                     RiskLevel.MEDIUM -> Color(0xFFFFA500) // Orange
