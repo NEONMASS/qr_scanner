@@ -22,6 +22,7 @@ data class AppPrivacyInfo(
     val usage3Days: String,
     val usage1Week: String,
     val usage1Month: String,
+    val usage1DayMillis: Long, // NEW: Raw number so we can sort highest to lowest!
     
     val riskLevel: RiskLevel
 )
