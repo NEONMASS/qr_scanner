@@ -46,4 +46,4 @@ jobs:
           args: put "app/build/outputs/apk/release/*.apk" "/PermissionAuditor_Release/"
         env:
           USERNAME: ${{ secrets.MEGA_USERNAME }}
-          PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+          PASSWORD: ${{ secrets.MEGA_PASSWORD }} 
