@@ -1,10 +1,12 @@
 package com.Neo.permissionauditor.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
@@ -43,7 +45,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
         it.packageName.contains(searchQuery, ignoreCase = true) 
     }
 
-    // NEW: Logic to extract "com.company" and group the apps dynamically!
     val groupedApps = remember(filteredApps) {
         filteredApps.groupBy { appInfo ->
             val parts = appInfo.packageName.split(".")
@@ -75,7 +76,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                 )
 
                 NavigationDrawerItem(
-                    label = { Text("Company Grouping (Grid)") },
+                    label = { Text("Company Grouping (Grid Layout)") },
                     selected = currentSort == SortOrder.PACKAGE_NAME,
                     onClick = {
                         viewModel.setSortOrder(SortOrder.PACKAGE_NAME)
@@ -186,16 +187,16 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                         CircularProgressIndicator()
                     }
                 } else {
-                    // NEW: The 2-Column LazyVerticalGrid!
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // If they select "Company Grouping", inject the headers across both columns
-                        if (currentSort == SortOrder.PACKAGE_NAME) {
+                    // NEW: Conditional UI rendering!
+                    if (currentSort == SortOrder.PACKAGE_NAME) {
+                        // 2-COLUMN GRID VIEW (Company Grouping)
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             groupedApps.forEach { (companyName, companyApps) ->
                                 item(span = { GridItemSpan(2) }) {
                                     Text(
@@ -206,14 +207,20 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
                                         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
                                     )
                                 }
-                                items(companyApps) { appInfo ->
-                                    AppRow(appInfo = appInfo)
+                                gridItems(companyApps) { appInfo ->
+                                    AppRow(appInfo = appInfo, isGridMode = true) // Pass flag to lock size
                                 }
                             }
-                        } else {
-                            // Normal sorting just shows the standard grid without headers
-                            items(filteredApps) { appInfo ->
-                                AppRow(appInfo = appInfo)
+                        }
+                    } else {
+                        // STANDARD LIST VIEW (Risk & App Name Sorting)
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            lazyItems(filteredApps) { appInfo ->
+                                AppRow(appInfo = appInfo, isGridMode = false) // Standard height
                             }
                         }
                     }
