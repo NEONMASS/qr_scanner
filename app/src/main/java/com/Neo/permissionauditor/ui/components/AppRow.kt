@@ -20,7 +20,7 @@ import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
 @Composable
-fun AppRow(appInfo: AppPrivacyInfo) {
+fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) { // NEW: Grid mode flag
     val context = LocalContext.current
     var showDialog by remember { mutableStateOf(false) }
 
@@ -75,13 +75,15 @@ fun AppRow(appInfo: AppPrivacyInfo) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            // NEW: If we are in grid mode, force every card to be exactly 140dp tall!
+            .then(if (isGridMode) Modifier.height(140.dp) else Modifier.wrapContentHeight())
             .clickable { showDialog = true }, 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize() // Forces it to fill the 140dp height in Grid mode
                 .padding(12.dp)
         ) {
             Row(
@@ -135,10 +137,15 @@ fun AppRow(appInfo: AppPrivacyInfo) {
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // NEW: Push the badges perfectly to the bottom of the card if in Grid Mode
+            if (isGridMode) {
+                Spacer(modifier = Modifier.weight(1f)) 
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            // Stacked badges to fit perfectly in the smaller grid cards
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // NEW: Linear Horizontal Layout for badges!
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (appInfo.hasCameraAccess) PermissionBadge("Cam", appInfo.isCameraGranted)
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
                 if (appInfo.hasLocationAccess) PermissionBadge("Loc", appInfo.isLocationGranted)
@@ -160,4 +167,4 @@ fun PermissionBadge(label: String, isGranted: Boolean) {
             color = textColor
         )
     }
-} 
+}
