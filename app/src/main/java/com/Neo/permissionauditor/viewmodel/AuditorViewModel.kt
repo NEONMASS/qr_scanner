@@ -15,6 +15,9 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
+// NEW: Define the sorting options
+enum class SortOrder { RISK, PACKAGE_NAME, APP_NAME }
+
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _installedApps = MutableStateFlow<List<AppPrivacyInfo>>(emptyList())
@@ -23,12 +26,18 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private val _showSystemApps = MutableStateFlow(false)
     val showSystemApps: StateFlow<Boolean> = _showSystemApps.asStateFlow()
 
-    // NEW: State to hold the current search text
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // NEW: Track the current sorting method (defaults to Risk Level)
+    private val _sortOrder = MutableStateFlow(SortOrder.RISK)
+    val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    // NEW: Store the raw, unsorted list of apps in memory so we can re-sort instantly
+    private var rawAppList = listOf<AppPrivacyInfo>()
 
     init {
         loadApps()
@@ -39,9 +48,25 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
         loadApps() 
     }
 
-    // NEW: Function to update the search text as you type
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    // NEW: Function to change the sort order and instantly apply it
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+        applySorting()
+    }
+
+    private fun applySorting() {
+        _installedApps.value = when (_sortOrder.value) {
+            // sortedByDescending puts HIGH risk at the very top
+            SortOrder.RISK -> rawAppList.sortedByDescending { it.riskLevel }
+            // Sort alphabetically by the underlying company code / package name (e.g. com.google...)
+            SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
+            // Sort alphabetically by the normal app name
+            SortOrder.APP_NAME -> rawAppList.sortedBy { it.appName.lowercase() }
+        }
     }
 
     private fun loadApps() {
@@ -100,7 +125,9 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            _installedApps.value = appList.sortedBy { it.riskLevel }
+            // Save the raw list, sort it, and hide the loading spinner
+            rawAppList = appList
+            applySorting() 
             _isLoading.value = false 
         }
     }
