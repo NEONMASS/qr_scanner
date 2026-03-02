@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
-import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -54,20 +53,14 @@ private val ManualTypography = Typography(
 
 // --- 2. EXCLUSIVE AUTO THEMES (Matcha & Velvet) ---
 private val AutoDayColors = lightColorScheme(
-    primary = Color(0xFF81C784), // Pastel Mint Green
-    background = Color(0xFFF1F8E9), // Morning Dew
-    surface = Color(0xFFFFFFFF), // Pure White
-    surfaceVariant = Color(0xFFE8F5E9), // Soft Mint Surface
-    onPrimary = Color.White, onBackground = Color(0xFF2E7D32),
+    primary = Color(0xFF81C784), background = Color(0xFFF1F8E9), surface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFFE8F5E9), onPrimary = Color.White, onBackground = Color(0xFF2E7D32),
     onSurface = Color(0xFF33691E), onSurfaceVariant = Color(0xFF558B2F)
 )
 
 private val AutoNightColors = darkColorScheme(
-    primary = Color(0xFFFFB74D), // Soft Golden Orange
-    background = Color(0xFF263238), // Deep Velvet Blue-Grey
-    surface = Color(0xFF37474F), // Elevated Velvet Cards
-    surfaceVariant = Color(0xFF455A64), // Muted Teal-Grey
-    onPrimary = Color(0xFF263238), onBackground = Color(0xFFFFF3E0),
+    primary = Color(0xFFFFB74D), background = Color(0xFF263238), surface = Color(0xFF37474F),
+    surfaceVariant = Color(0xFF455A64), onPrimary = Color(0xFF263238), onBackground = Color(0xFFFFF3E0),
     onSurface = Color(0xFFFFF3E0), onSurfaceVariant = Color(0xFFFFCC80)
 )
 
@@ -80,54 +73,35 @@ private val AutoTypography = Typography(
 
 // --- 3. DYNAMIC BACKGROUND PAINTER WITH DESIGNS ---
 @Composable
-fun AestheticBackground(themePref: String, isDayTime: Boolean) {
+fun AestheticBackground(themePref: String, systemIsDark: Boolean) {
     val bgColor = MaterialTheme.colorScheme.background
     
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val isNight = (themePref == "auto_time" && !isDayTime) || themePref == "dark" || (themePref == "system" && !isDayTime)
+        // FIX: The dark mode graphic triggers based on System Dark Mode, not the hardcoded clock!
+        val isNight = (themePref == "auto_time" && systemIsDark) || themePref == "dark" || (themePref == "system" && systemIsDark)
 
         if (isNight) {
-            // NIGHT DESIGN: Moon and Stars
             val moonColor = if (themePref == "auto_time") Color(0xFFFFB74D) else Color(0xFFD1C4E9)
-            
-            // Draw Scattered Glowing Stars
             drawCircle(color = moonColor.copy(alpha = 0.5f), radius = 5f, center = Offset(size.width * 0.15f, size.height * 0.1f))
             drawCircle(color = moonColor.copy(alpha = 0.3f), radius = 8f, center = Offset(size.width * 0.45f, size.height * 0.25f))
             drawCircle(color = moonColor.copy(alpha = 0.6f), radius = 4f, center = Offset(size.width * 0.85f, size.height * 0.4f))
             drawCircle(color = moonColor.copy(alpha = 0.4f), radius = 6f, center = Offset(size.width * 0.25f, size.height * 0.45f))
             drawCircle(color = moonColor.copy(alpha = 0.2f), radius = 10f, center = Offset(size.width * 0.7f, size.height * 0.15f))
-
-            // Draw Crescent Moon
             drawCircle(color = moonColor.copy(alpha = 0.15f), radius = 450f, center = Offset(size.width + 100f, -50f))
-            drawCircle(color = bgColor, radius = 380f, center = Offset(size.width - 50f, 100f)) // Cutout to make crescent
-            
+            drawCircle(color = bgColor, radius = 380f, center = Offset(size.width - 50f, 100f)) 
         } else {
-            // DAY DESIGN: Glowing Sun with Rays
             val sunColor = if (themePref == "auto_time") Color(0xFF81C784) else Color(0xFFFFCA28)
             val sunCenter = Offset(size.width + 100f, -100f)
-
-            // Draw Mathematical Sun Rays
             for (i in 0 until 12) {
                 val angle = (i * 30f) * (PI / 180f)
-                val startRadius = 380f
-                val endRadius = 550f
-                val startX = sunCenter.x + (startRadius * cos(angle)).toFloat()
-                val startY = sunCenter.y + (startRadius * sin(angle)).toFloat()
-                val endX = sunCenter.x + (endRadius * cos(angle)).toFloat()
-                val endY = sunCenter.y + (endRadius * sin(angle)).toFloat()
-                
-                drawLine(
-                    color = sunColor.copy(alpha = 0.15f),
-                    start = Offset(startX, startY),
-                    end = Offset(endX, endY),
-                    strokeWidth = 50f,
-                    cap = StrokeCap.Round
-                )
+                val startX = sunCenter.x + (380f * cos(angle)).toFloat()
+                val startY = sunCenter.y + (380f * sin(angle)).toFloat()
+                val endX = sunCenter.x + (550f * cos(angle)).toFloat()
+                val endY = sunCenter.y + (550f * sin(angle)).toFloat()
+                drawLine(color = sunColor.copy(alpha = 0.15f), start = Offset(startX, startY), end = Offset(endX, endY), strokeWidth = 50f, cap = StrokeCap.Round)
             }
-
-            // Draw Main Sun Body
-            drawCircle(color = sunColor.copy(alpha = 0.1f), radius = 600f, center = sunCenter) // Outer Glow
-            drawCircle(color = sunColor.copy(alpha = 0.25f), radius = 350f, center = sunCenter) // Solid Core
+            drawCircle(color = sunColor.copy(alpha = 0.1f), radius = 600f, center = sunCenter) 
+            drawCircle(color = sunColor.copy(alpha = 0.25f), radius = 350f, center = sunCenter) 
         }
     }
 }
@@ -139,18 +113,17 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
-            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            val isDayTime = currentHour in 6..17 
+            
+            // THE FIX: Defer entirely to the robust Android OS for day/night awareness
+            val systemIsDark = isSystemInDarkTheme()
 
-            // Pick the Exact Color Palette
             val colorScheme = when (themePref) {
                 "light" -> PastelDayColors
                 "dark" -> PastelNightColors
-                "auto_time" -> if (isDayTime) AutoDayColors else AutoNightColors
-                else -> if (isSystemInDarkTheme()) PastelNightColors else PastelDayColors
+                "auto_time" -> if (systemIsDark) AutoNightColors else AutoDayColors
+                else -> if (systemIsDark) PastelNightColors else PastelDayColors
             }
 
-            // Pick the Exact Typography
             val typography = if (themePref == "auto_time") AutoTypography else ManualTypography
 
             var isUnlocked by remember {
@@ -161,9 +134,7 @@ class MainActivity : FragmentActivity() {
             MaterialTheme(colorScheme = colorScheme, typography = typography) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        
-                        AestheticBackground(themePref = themePref, isDayTime = isDayTime)
-                        
+                        AestheticBackground(themePref = themePref, systemIsDark = systemIsDark)
                         if (isUnlocked) {
                             AuditorScreen(onThemeChange = { themePref = it })
                         } else {
@@ -211,19 +182,14 @@ fun EnterPinScreen(correctPin: String, useBiometrics: Boolean, onUnlock: () -> U
         Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(16.dp))
         Text("App Locked", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        
         Spacer(modifier = Modifier.height(32.dp))
-        
         OutlinedTextField(
             value = pinInput, onValueChange = { isError = false; if (it.length <= 4) pinInput = it.filter { char -> char.isDigit() } },
             label = { Text("Enter PIN") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             visualTransformation = PasswordVisualTransformation(), isError = isError, singleLine = true
         )
-        
         if (isError) { Text("Incorrect PIN", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
-        
         Spacer(modifier = Modifier.height(24.dp))
-        
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (useBiometrics) {
                 Button(onClick = { triggerBiometrics() }, modifier = Modifier.weight(1f).height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)) { Text("Biometrics") }
