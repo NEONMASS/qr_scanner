@@ -15,9 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity // Crucial for Biometrics!
+import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
-import com.Neo.permissionauditor.ui.theme.PermissionAuditorTheme
 
 class MainActivity : FragmentActivity() {
 
@@ -25,7 +24,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         
         setContent {
-            PermissionAuditorTheme {
+            // THE FIX: Using standard MaterialTheme directly!
+            MaterialTheme {
                 // State to track if the vault is unlocked
                 var isUnlocked by remember { mutableStateOf(false) }
 

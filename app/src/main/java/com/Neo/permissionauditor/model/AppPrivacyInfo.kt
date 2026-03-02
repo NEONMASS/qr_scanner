@@ -17,10 +17,11 @@ data class AppPrivacyInfo(
     val isMicrophoneGranted: Boolean,
     
     val hasInternetAccess: Boolean,
-    
-    // NEW: Installation Source Tracking
     val installerName: String,
     val isSideloaded: Boolean,
+    
+    // NEW: Ghost App Tracker
+    val isHidden: Boolean,
     
     val totalPermissionsRequested: Int,
     

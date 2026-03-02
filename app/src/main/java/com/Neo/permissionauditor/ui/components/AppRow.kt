@@ -47,7 +47,14 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // NEW: Origin tracking in the popup!
+                    // NEW: Ghost App Warning in Popup
+                    if (appInfo.isHidden && !appInfo.isSystemApp) {
+                        Text("Visibility Status:", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("👻 GHOST APP - Purposely hidden from your Home Screen!", color = Color.Red, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     Text("Origin / Installation Source:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     if (appInfo.isSideloaded) {
@@ -114,10 +121,16 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     }
                 }
                 
-                // NEW: The Sideloaded Alert Badge
                 if (appInfo.isSideloaded) {
                     Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.small) {
                         Text("Sideloaded", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                }
+
+                // NEW: The Ghost App Red Alert Badge
+                if (appInfo.isHidden && !appInfo.isSystemApp) {
+                    Surface(color = MaterialTheme.colorScheme.error, shape = MaterialTheme.shapes.small) {
+                        Text("👻 GHOST", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onError)
                     }
                 }
             }

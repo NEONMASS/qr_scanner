@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.Application
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -90,6 +91,16 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             val stats1Week = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 7), now) else emptyMap()
             val stats1Month = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 30), now) else emptyMap()
 
+            // NEW: Get a list of every single app that has a launcher icon
+            val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+            val launcherApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.queryIntentActivities(launcherIntent, PackageManager.ResolveInfoFlags.of(0L))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.queryIntentActivities(launcherIntent, 0)
+            }
+            val launcherPackages = launcherApps.map { it.activityInfo.packageName }.toSet()
+
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
             } else {
@@ -121,7 +132,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
                 }
 
-                // NEW: Find out EXACTLY where this app came from!
                 val installerPackage = try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         packageManager.getInstallSourceInfo(pack.packageName).installingPackageName
@@ -131,7 +141,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     }
                 } catch (e: Exception) { null }
 
-                // Translate package names to human readable stores
                 val (installerName, isSideloaded) = when (installerPackage) {
                     "com.android.vending" -> Pair("Google Play Store", false)
                     "com.sec.android.app.samsungapps" -> Pair("Samsung Galaxy Store", false)
@@ -140,6 +149,9 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     null -> if (isSystemApp) Pair("Pre-installed (System)", false) else Pair("Sideloaded (Unknown)", true)
                     else -> Pair("Third-Party: $installerPackage", true)
                 }
+
+                // NEW: If the package is NOT in the launcher list, it is hidden!
+                val isHidden = !launcherPackages.contains(pack.packageName)
 
                 val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
                 val raw3Days = stats3Days[pack.packageName]?.totalTimeInForeground ?: 0L
@@ -158,8 +170,9 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
                         hasInternetAccess = hasInternet, 
-                        installerName = installerName, // Inject Installer Info
-                        isSideloaded = isSideloaded,   // Inject Sideload Flag
+                        installerName = installerName,
+                        isSideloaded = isSideloaded,
+                        isHidden = isHidden, // Inject Ghost Status
                         totalPermissionsRequested = totalPerms,
                         usage1Day = formatMillis(raw1Day),
                         usage3Days = formatMillis(raw3Days),
