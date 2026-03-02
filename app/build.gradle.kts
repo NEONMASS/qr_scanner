@@ -71,4 +71,5 @@ dependencies {
 
     // Coroutines for background threading
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
 }
