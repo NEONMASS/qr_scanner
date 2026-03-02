@@ -29,7 +29,6 @@ class MainActivity : FragmentActivity() {
         val sharedPrefs = getSharedPreferences("AuditorPrefs", Context.MODE_PRIVATE)
 
         setContent {
-            // NEW: Read the theme from settings dynamically
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "system") ?: "system") }
             
             val isDarkTheme = when (themePref) {
@@ -38,13 +37,11 @@ class MainActivity : FragmentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            // NEW: Check if the user opted to set a PIN
             var isUnlocked by remember {
                 val savedPin = sharedPrefs.getString("app_pin", "")
-                mutableStateOf(savedPin.isNullOrEmpty()) // Unlock immediately if no PIN exists
+                mutableStateOf(savedPin.isNullOrEmpty()) 
             }
 
-            // Apply dynamic Theme
             MaterialTheme(
                 colorScheme = if (isDarkTheme) darkColorScheme() else lightColorScheme()
             ) {
@@ -53,7 +50,6 @@ class MainActivity : FragmentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (isUnlocked) {
-                        // Pass a callback so the Settings screen can instantly trigger a theme update
                         AuditorScreen(onThemeChange = { themePref = it })
                     } else {
                         val correctPin = sharedPrefs.getString("app_pin", "") ?: ""
@@ -72,35 +68,39 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-// The Lock Screen (Stays identical to before, just triggers IF a PIN exists)
 @Composable
 fun EnterPinScreen(correctPin: String, useBiometrics: Boolean, onUnlock: () -> Unit, activity: FragmentActivity) {
     var pinInput by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
 
-    val executor = ContextCompat.getMainExecutor(activity)
-    val biometricPrompt = remember {
-        BiometricPrompt(activity, executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    onUnlock()
-                }
-            })
-    }
-    val promptInfo = remember {
-        BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Auditor PRO")
-            .setSubtitle("Use your fingerprint or enter your PIN")
-            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
-            .build()
-    }
-
-    LaunchedEffect(Unit) {
+    // SAFELY wrapped biometrics to prevent crashes on phones without fingerprints
+    val triggerBiometrics = {
         if (useBiometrics) {
-            try { biometricPrompt.authenticate(promptInfo) } catch (e: Exception) { }
+            try {
+                val executor = ContextCompat.getMainExecutor(activity)
+                val biometricPrompt = BiometricPrompt(activity, executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            onUnlock()
+                        }
+                    })
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Unlock Auditor PRO")
+                    .setSubtitle("Use your fingerprint or enter your PIN")
+                    .setNegativeButtonText("Use Custom PIN")
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    .build()
+                
+                biometricPrompt.authenticate(promptInfo)
+            } catch (e: Exception) { 
+                // Ignore any hardware errors, just let them use the PIN
+            }
         }
     }
+
+    // Try to scan fingerprint when the screen opens (if enabled)
+    LaunchedEffect(Unit) { triggerBiometrics() }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -133,7 +133,7 @@ fun EnterPinScreen(correctPin: String, useBiometrics: Boolean, onUnlock: () -> U
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (useBiometrics) {
                 Button(
-                    onClick = { try { biometricPrompt.authenticate(promptInfo) } catch (e: Exception) { } },
+                    onClick = { triggerBiometrics() },
                     modifier = Modifier.weight(1f).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) { Text("Biometrics") }
