@@ -127,10 +127,9 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     }
                 }
 
-                // NEW: The Ghost App Red Alert Badge
                 if (appInfo.isHidden && !appInfo.isSystemApp) {
                     Surface(color = MaterialTheme.colorScheme.error, shape = MaterialTheme.shapes.small) {
-                        Text("👻 GHOST", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onError)
+                        Text(" UI-Less", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onError)
                     }
                 }
             }
