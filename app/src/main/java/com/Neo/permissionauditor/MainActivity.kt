@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +28,9 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
 import java.util.Calendar
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 // --- 1. MANUAL THEMES (Cream & Twilight) ---
 private val PastelDayColors = lightColorScheme(
@@ -68,40 +72,62 @@ private val AutoNightColors = darkColorScheme(
 )
 
 private val AutoTypography = Typography(
-    // Cursive/Stylized fonts exclusively for Auto mode to make it distinct!
-    headlineMedium = TextStyle(fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold, fontSize = 36.sp),
-    titleMedium = TextStyle(fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold, fontSize = 24.sp),
-    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 14.sp),
-    labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+    headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Light, fontSize = 32.sp, letterSpacing = 6.sp),
+    titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Light, fontSize = 20.sp, letterSpacing = 3.sp),
+    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 14.sp, letterSpacing = 0.5.sp),
+    labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 11.sp, letterSpacing = 1.sp)
 )
 
-// --- 3. DYNAMIC BACKGROUND PAINTER ---
+// --- 3. DYNAMIC BACKGROUND PAINTER WITH DESIGNS ---
 @Composable
 fun AestheticBackground(themePref: String, isDayTime: Boolean) {
     val bgColor = MaterialTheme.colorScheme.background
     
     Canvas(modifier = Modifier.fillMaxSize()) {
-        when {
-            // AUTO NIGHT: Golden Moon
-            themePref == "auto_time" && !isDayTime -> {
-                drawCircle(color = Color(0xFFFFB74D).copy(alpha = 0.15f), radius = 450f, center = Offset(size.width + 100f, -50f))
-                drawCircle(color = bgColor, radius = 380f, center = Offset(size.width - 50f, 100f)) // Cutout
+        val isNight = (themePref == "auto_time" && !isDayTime) || themePref == "dark" || (themePref == "system" && !isDayTime)
+
+        if (isNight) {
+            // NIGHT DESIGN: Moon and Stars
+            val moonColor = if (themePref == "auto_time") Color(0xFFFFB74D) else Color(0xFFD1C4E9)
+            
+            // Draw Scattered Glowing Stars
+            drawCircle(color = moonColor.copy(alpha = 0.5f), radius = 5f, center = Offset(size.width * 0.15f, size.height * 0.1f))
+            drawCircle(color = moonColor.copy(alpha = 0.3f), radius = 8f, center = Offset(size.width * 0.45f, size.height * 0.25f))
+            drawCircle(color = moonColor.copy(alpha = 0.6f), radius = 4f, center = Offset(size.width * 0.85f, size.height * 0.4f))
+            drawCircle(color = moonColor.copy(alpha = 0.4f), radius = 6f, center = Offset(size.width * 0.25f, size.height * 0.45f))
+            drawCircle(color = moonColor.copy(alpha = 0.2f), radius = 10f, center = Offset(size.width * 0.7f, size.height * 0.15f))
+
+            // Draw Crescent Moon
+            drawCircle(color = moonColor.copy(alpha = 0.15f), radius = 450f, center = Offset(size.width + 100f, -50f))
+            drawCircle(color = bgColor, radius = 380f, center = Offset(size.width - 50f, 100f)) // Cutout to make crescent
+            
+        } else {
+            // DAY DESIGN: Glowing Sun with Rays
+            val sunColor = if (themePref == "auto_time") Color(0xFF81C784) else Color(0xFFFFCA28)
+            val sunCenter = Offset(size.width + 100f, -100f)
+
+            // Draw Mathematical Sun Rays
+            for (i in 0 until 12) {
+                val angle = (i * 30f) * (PI / 180f)
+                val startRadius = 380f
+                val endRadius = 550f
+                val startX = sunCenter.x + (startRadius * cos(angle)).toFloat()
+                val startY = sunCenter.y + (startRadius * sin(angle)).toFloat()
+                val endX = sunCenter.x + (endRadius * cos(angle)).toFloat()
+                val endY = sunCenter.y + (endRadius * sin(angle)).toFloat()
+                
+                drawLine(
+                    color = sunColor.copy(alpha = 0.15f),
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = 50f,
+                    cap = StrokeCap.Round
+                )
             }
-            // AUTO DAY: Morning Mint Sun
-            themePref == "auto_time" && isDayTime -> {
-                drawCircle(color = Color(0xFFAED581).copy(alpha = 0.2f), radius = 550f, center = Offset(size.width + 100f, -100f))
-                drawCircle(color = Color(0xFF81C784).copy(alpha = 0.3f), radius = 350f, center = Offset(size.width + 100f, -100f))
-            }
-            // MANUAL DARK: Lavender Moon
-            themePref == "dark" || (themePref == "system" && !isDayTime) -> {
-                drawCircle(color = Color(0xFFD1C4E9).copy(alpha = 0.15f), radius = 450f, center = Offset(size.width + 100f, -50f))
-                drawCircle(color = bgColor, radius = 380f, center = Offset(size.width - 50f, 100f)) // Cutout
-            }
-            // MANUAL LIGHT: Rose Sun
-            else -> {
-                drawCircle(color = Color(0xFFFFD54F).copy(alpha = 0.1f), radius = 550f, center = Offset(size.width + 100f, -100f))
-                drawCircle(color = Color(0xFFFFCA28).copy(alpha = 0.2f), radius = 350f, center = Offset(size.width + 100f, -100f))
-            }
+
+            // Draw Main Sun Body
+            drawCircle(color = sunColor.copy(alpha = 0.1f), radius = 600f, center = sunCenter) // Outer Glow
+            drawCircle(color = sunColor.copy(alpha = 0.25f), radius = 350f, center = sunCenter) // Solid Core
         }
     }
 }
@@ -136,7 +162,6 @@ class MainActivity : FragmentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         
-                        // Pass the exact theme so it draws the correct Sun/Moon!
                         AestheticBackground(themePref = themePref, isDayTime = isDayTime)
                         
                         if (isUnlocked) {
