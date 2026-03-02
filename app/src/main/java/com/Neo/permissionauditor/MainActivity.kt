@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -26,37 +28,74 @@ import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
 import java.util.Calendar
 
-// --- THEME ENGINE: Aesthetic Colors ---
-private val AestheticLightColors = lightColorScheme(
-    primary = Color(0xFF2563EB), // Royal Blue
-    background = Color(0xFFF8FAFC), // Soft Pearl Slate
+// --- THEME ENGINE: Pastel Aesthetic Colors ---
+private val PastelDayColors = lightColorScheme(
+    primary = Color(0xFFE57373), // Soft Rose
+    background = Color(0xFFFFF9F5), // Warm Cream
     surface = Color(0xFFFFFFFF), // Pure White Cards
-    surfaceVariant = Color(0xFFF1F5F9), // Light Frost
+    surfaceVariant = Color(0xFFFFEBE8), // Very faint blush
     onPrimary = Color.White,
-    onBackground = Color(0xFF0F172A), // Dark Slate Text
-    onSurface = Color(0xFF0F172A),
-    onSurfaceVariant = Color(0xFF475569)
+    onBackground = Color(0xFF4A4A4A), // Soft Charcoal
+    onSurface = Color(0xFF4A4A4A),
+    onSurfaceVariant = Color(0xFF757575)
 )
 
-private val AestheticDarkColors = darkColorScheme(
-    primary = Color(0xFF06B6D4), // Neon Cyan (Hacker vibe)
-    background = Color(0xFF0B1120), // Deep Midnight Void
-    surface = Color(0xFF111827), // Elevated Navy Cards
-    surfaceVariant = Color(0xFF1F2937), // Dark Slate
-    onPrimary = Color.Black,
-    onBackground = Color(0xFFF8FAFC), // Crisp White Text
-    onSurface = Color(0xFFF8FAFC),
-    onSurfaceVariant = Color(0xFF94A3B8)
+private val PastelNightColors = darkColorScheme(
+    primary = Color(0xFFB39DDB), // Soft Lavender
+    background = Color(0xFF1E1C2A), // Deep Twilight Blue
+    surface = Color(0xFF282534), // Elevated Twilight Cards
+    surfaceVariant = Color(0xFF383447), // Muted Purple-Gray
+    onPrimary = Color(0xFF1E1C2A),
+    onBackground = Color(0xFFEAE6F3), // Off-white lavender text
+    onSurface = Color(0xFFEAE6F3),
+    onSurfaceVariant = Color(0xFFB0A8C0)
 )
 
 // --- THEME ENGINE: Aesthetic Typography ---
 private val AestheticTypography = Typography(
-    headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, letterSpacing = (-1).sp),
-    titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 18.sp),
-    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 14.sp, letterSpacing = 0.25.sp),
-    // Monospace for our security badges to make them look like code/terminal output!
-    labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+    // Elegant Serif fonts for titles
+    headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 28.sp),
+    titleMedium = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
+    // Clean SansSerif for readability in descriptions
+    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+    // Monospace to keep the "auditor/code" vibe for the security badges
+    labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 11.sp)
 )
+
+// --- THEME ENGINE: Sun & Moon Background Painter ---
+@Composable
+fun AestheticBackground(isDarkTheme: Boolean) {
+    val bgColor = MaterialTheme.colorScheme.background
+    
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        if (isDarkTheme) {
+            // Draw a Crescent Moon in the top right
+            drawCircle(
+                color = Color(0xFFD1C4E9).copy(alpha = 0.15f), // Soft glowing purple
+                radius = 450f,
+                center = Offset(size.width + 100f, -50f)
+            )
+            // Cut out the crescent by drawing the background color over it
+            drawCircle(
+                color = bgColor,
+                radius = 380f,
+                center = Offset(size.width - 50f, 100f)
+            )
+        } else {
+            // Draw a glowing Sun in the top right
+            drawCircle(
+                color = Color(0xFFFFD54F).copy(alpha = 0.1f), // Soft large outer glow
+                radius = 550f,
+                center = Offset(size.width + 100f, -100f)
+            )
+            drawCircle(
+                color = Color(0xFFFFCA28).copy(alpha = 0.2f), // Warmer inner sun
+                radius = 350f,
+                center = Offset(size.width + 100f, -100f)
+            )
+        }
+    }
+}
 
 class MainActivity : FragmentActivity() {
 
@@ -68,15 +107,15 @@ class MainActivity : FragmentActivity() {
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
             
-            // --- THE CLOCK: Native Time Detection ---
+            // The Clock Engine
             val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val isDayTime = currentHour in 6..17 // 6:00 AM to 5:59 PM is Day
 
             val isDarkTheme = when (themePref) {
                 "light" -> false
                 "dark" -> true
-                "auto_time" -> !isDayTime // True if it's Night!
-                else -> isSystemInDarkTheme() // "system" fallback
+                "auto_time" -> !isDayTime 
+                else -> isSystemInDarkTheme() 
             }
 
             var isUnlocked by remember {
@@ -84,27 +123,32 @@ class MainActivity : FragmentActivity() {
                 mutableStateOf(savedPin.isNullOrEmpty()) 
             }
 
-            // Apply our custom aesthetic themes!
             MaterialTheme(
-                colorScheme = if (isDarkTheme) AestheticDarkColors else AestheticLightColors,
+                colorScheme = if (isDarkTheme) PastelNightColors else PastelDayColors,
                 typography = AestheticTypography
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (isUnlocked) {
-                        AuditorScreen(onThemeChange = { themePref = it })
-                    } else {
-                        val correctPin = sharedPrefs.getString("app_pin", "") ?: ""
-                        val useBiometrics = sharedPrefs.getBoolean("use_biometrics", false)
+                    // NEW: Wrap everything in a Box and paint the background graphic first!
+                    Box(modifier = Modifier.fillMaxSize()) {
                         
-                        EnterPinScreen(
-                            correctPin = correctPin,
-                            useBiometrics = useBiometrics,
-                            onUnlock = { isUnlocked = true },
-                            activity = this@MainActivity
-                        )
+                        AestheticBackground(isDarkTheme = isDarkTheme)
+                        
+                        if (isUnlocked) {
+                            AuditorScreen(onThemeChange = { themePref = it })
+                        } else {
+                            val correctPin = sharedPrefs.getString("app_pin", "") ?: ""
+                            val useBiometrics = sharedPrefs.getBoolean("use_biometrics", false)
+                            
+                            EnterPinScreen(
+                                correctPin = correctPin,
+                                useBiometrics = useBiometrics,
+                                onUnlock = { isUnlocked = true },
+                                activity = this@MainActivity
+                            )
+                        }
                     }
                 }
             }
