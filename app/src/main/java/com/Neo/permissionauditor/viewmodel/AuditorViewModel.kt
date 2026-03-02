@@ -4,7 +4,6 @@ import android.app.AppOpsManager
 import android.app.Application
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -19,7 +18,8 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED }
+// NEW: Added SETTINGS to the states
+enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED, SETTINGS }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -68,6 +68,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
             SortOrder.USAGE_MOST_USED -> rawAppList.sortedByDescending { it.usage1DayMillis } 
+            SortOrder.SETTINGS -> rawAppList // Fallback for settings tab
         }
     }
 
@@ -91,8 +92,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             val stats1Week = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 7), now) else emptyMap()
             val stats1Month = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 30), now) else emptyMap()
 
-            // NEW: Get a list of every single app that has a launcher icon
-            val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+            val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply { addCategory(android.content.Intent.CATEGORY_LAUNCHER) }
             val launcherApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.queryIntentActivities(launcherIntent, PackageManager.ResolveInfoFlags.of(0L))
             } else {
@@ -145,12 +145,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                     "com.android.vending" -> Pair("Google Play Store", false)
                     "com.sec.android.app.samsungapps" -> Pair("Samsung Galaxy Store", false)
                     "com.amazon.venezia" -> Pair("Amazon Appstore", false)
-                    "com.google.android.packageinstaller", "com.android.packageinstaller" -> Pair("Sideloaded (Package Installer)", true)
-                    null -> if (isSystemApp) Pair("Pre-installed (System)", false) else Pair("Sideloaded (Unknown)", true)
-                    else -> Pair("Third-Party: $installerPackage", true)
+                    "com.google.android.packageinstaller", "com.android.packageinstaller" -> Pair("Sideloaded", true)
+                    null -> if (isSystemApp) Pair("System", false) else Pair("Unknown", true)
+                    else -> Pair(installerPackage, true)
                 }
 
-                // NEW: If the package is NOT in the launcher list, it is hidden!
                 val isHidden = !launcherPackages.contains(pack.packageName)
 
                 val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
@@ -172,7 +171,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasInternetAccess = hasInternet, 
                         installerName = installerName,
                         isSideloaded = isSideloaded,
-                        isHidden = isHidden, // Inject Ghost Status
+                        isHidden = isHidden, 
                         totalPermissionsRequested = totalPerms,
                         usage1Day = formatMillis(raw1Day),
                         usage3Days = formatMillis(raw3Days),
