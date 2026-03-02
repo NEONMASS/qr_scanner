@@ -213,7 +213,8 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = context.getSharedPreferences("AuditorPrefs", Context.MODE_PRIVATE)
 
-    var currentTheme by remember { mutableStateOf(sharedPrefs.getString("theme", "system") ?: "system") }
+    // Default to our new auto_time feature!
+    var currentTheme by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
     var hasPin by remember { mutableStateOf(!sharedPrefs.getString("app_pin", "").isNullOrEmpty()) }
     var useBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("use_biometrics", false)) }
 
@@ -261,23 +262,29 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
         Text("Appearance", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val themes = listOf("light" to "Light", "dark" to "Dark", "system" to "System")
+        // NEW: We added "Auto (Clock)" to the choices and arranged them nicely
+        Column(modifier = Modifier.fillMaxWidth()) {
+            val themes = listOf(
+                "auto_time" to "Auto (Day/Night Clock)",
+                "system" to "System Default",
+                "light" to "Force Light Mode", 
+                "dark" to "Force Dark Mode"
+            )
             themes.forEach { (key, label) ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { 
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { 
                     currentTheme = key
                     sharedPrefs.edit().putString("theme", key).apply()
-                    onThemeChange(key) // Instantly updates the whole app UI!
-                }) {
+                    onThemeChange(key)
+                }.padding(vertical = 4.dp)) {
                     RadioButton(selected = currentTheme == key, onClick = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(label)
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
 
         Spacer(Modifier.height(32.dp))
-        Divider()
+        HorizontalDivider()
         Spacer(Modifier.height(32.dp))
 
         // --- SECURITY SECTION ---
@@ -300,17 +307,25 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
             })
         }
 
-        if (hasPin && canAuthenticate) {
+        if (hasPin) {
             Spacer(Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
                     Text("Biometric Unlock", fontWeight = FontWeight.Medium)
-                    Text("Use fingerprint or face recognition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (canAuthenticate) {
+                        Text("Use fingerprint or face recognition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text("⚠️ Enable a fingerprint or screen lock in your phone's Android Settings first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                 }
-                Switch(checked = useBiometrics, onCheckedChange = {
-                    useBiometrics = it
-                    sharedPrefs.edit().putBoolean("use_biometrics", it).apply()
-                })
+                Switch(
+                    checked = useBiometrics && canAuthenticate, 
+                    onCheckedChange = {
+                        useBiometrics = it
+                        sharedPrefs.edit().putBoolean("use_biometrics", it).apply()
+                    },
+                    enabled = canAuthenticate 
+                )
             }
         }
     }
