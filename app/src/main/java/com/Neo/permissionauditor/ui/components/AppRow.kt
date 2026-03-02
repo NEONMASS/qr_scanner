@@ -46,8 +46,18 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 Column {
                     Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // NEW: Origin tracking in the popup!
+                    Text("Origin / Installation Source:", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (appInfo.isSideloaded) {
+                        Text("⚠️ ${appInfo.installerName}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium)
+                    } else {
+                        Text("✅ ${appInfo.installerName}", color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    // NEW: The Secret Internet Warning
                     Text("Network Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     if (appInfo.hasInternetAccess) {
@@ -98,10 +108,16 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 if (appInfo.hasMicrophoneAccess) PermissionBadge("Mic", appInfo.isMicrophoneGranted)
                 if (appInfo.hasLocationAccess) PermissionBadge("Loc", appInfo.isLocationGranted)
                 
-                // NEW: The Web Badge
                 if (appInfo.hasInternetAccess) {
                     Surface(color = Color(0xFF1976D2).copy(alpha = 0.2f), shape = MaterialTheme.shapes.small) {
                         Text("Web", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color(0xFF1565C0))
+                    }
+                }
+                
+                // NEW: The Sideloaded Alert Badge
+                if (appInfo.isSideloaded) {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.small) {
+                        Text("Sideloaded", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
             }

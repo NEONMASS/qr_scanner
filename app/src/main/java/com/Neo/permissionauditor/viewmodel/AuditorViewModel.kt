@@ -114,13 +114,31 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 val isLocationGranted = hasLocation && (packageManager.checkPermission("android.permission.ACCESS_FINE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED || packageManager.checkPermission("android.permission.ACCESS_COARSE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED)
                 val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
                 val isMicGranted = hasMic && packageManager.checkPermission("android.permission.RECORD_AUDIO", pack.packageName) == PackageManager.PERMISSION_GRANTED
-
-                // Check for silent internet access!
                 val hasInternet = requestedPermissions.contains("android.permission.INTERNET")
 
                 val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
                 val riskLevel = when (sensitiveCount) {
                     3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
+                }
+
+                // NEW: Find out EXACTLY where this app came from!
+                val installerPackage = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        packageManager.getInstallSourceInfo(pack.packageName).installingPackageName
+                    } else {
+                        @Suppress("DEPRECATION")
+                        packageManager.getInstallerPackageName(pack.packageName)
+                    }
+                } catch (e: Exception) { null }
+
+                // Translate package names to human readable stores
+                val (installerName, isSideloaded) = when (installerPackage) {
+                    "com.android.vending" -> Pair("Google Play Store", false)
+                    "com.sec.android.app.samsungapps" -> Pair("Samsung Galaxy Store", false)
+                    "com.amazon.venezia" -> Pair("Amazon Appstore", false)
+                    "com.google.android.packageinstaller", "com.android.packageinstaller" -> Pair("Sideloaded (Package Installer)", true)
+                    null -> if (isSystemApp) Pair("Pre-installed (System)", false) else Pair("Sideloaded (Unknown)", true)
+                    else -> Pair("Third-Party: $installerPackage", true)
                 }
 
                 val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
@@ -140,6 +158,8 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
                         hasInternetAccess = hasInternet, 
+                        installerName = installerName, // Inject Installer Info
+                        isSideloaded = isSideloaded,   // Inject Sideload Flag
                         totalPermissionsRequested = totalPerms,
                         usage1Day = formatMillis(raw1Day),
                         usage3Days = formatMillis(raw3Days),
