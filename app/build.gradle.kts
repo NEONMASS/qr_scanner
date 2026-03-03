@@ -8,7 +8,7 @@ android {
     compileSdk = 34 // Compiling for Android 14
 
     defaultConfig {
-        applicationId = "com.Neo.permissionauditor"
+        applicationId = "com.Neo.permissionauditor.pro"
         minSdk = 26 // Android 8.0
         targetSdk = 34
         versionCode = 1
@@ -71,4 +71,5 @@ dependencies {
 
     // Coroutines for background threading
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
 }

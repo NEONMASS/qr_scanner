@@ -18,7 +18,8 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED }
+// NEW: Added SETTINGS to the states
+enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED, SETTINGS }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -42,23 +43,11 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
 
     private var rawAppList = listOf<AppPrivacyInfo>()
 
-    init {
-        checkPermissionAndLoadApps()
-    }
+    init { checkPermissionAndLoadApps() }
 
-    fun toggleSystemApps(show: Boolean) {
-        _showSystemApps.value = show
-        checkPermissionAndLoadApps() 
-    }
-
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun setSortOrder(order: SortOrder) {
-        _sortOrder.value = order
-        applySorting()
-    }
+    fun toggleSystemApps(show: Boolean) { _showSystemApps.value = show; checkPermissionAndLoadApps() }
+    fun updateSearchQuery(query: String) { _searchQuery.value = query }
+    fun setSortOrder(order: SortOrder) { _sortOrder.value = order; applySorting() }
 
     fun checkPermissionAndLoadApps() {
         val appOps = getApplication<Application>().getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -68,7 +57,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             @Suppress("DEPRECATION")
             appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getApplication<Application>().packageName)
         }
-        
         _hasUsagePermission.value = (mode == AppOpsManager.MODE_ALLOWED)
         loadApps()
     }
@@ -80,6 +68,7 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
             SortOrder.USAGE_MOST_USED -> rawAppList.sortedByDescending { it.usage1DayMillis } 
+            SortOrder.SETTINGS -> rawAppList // Fallback for settings tab
         }
     }
 
@@ -93,7 +82,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
     private fun loadApps() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true 
-
             val app = getApplication<Application>()
             val packageManager = app.packageManager
             val usageStatsManager = app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -103,6 +91,15 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             val stats3Days = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 3), now) else emptyMap()
             val stats1Week = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 7), now) else emptyMap()
             val stats1Month = if (_hasUsagePermission.value) usageStatsManager.queryAndAggregateUsageStats(now - (1000L * 60 * 60 * 24 * 30), now) else emptyMap()
+
+            val launcherIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply { addCategory(android.content.Intent.CATEGORY_LAUNCHER) }
+            val launcherApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.queryIntentActivities(launcherIntent, PackageManager.ResolveInfoFlags.of(0L))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.queryIntentActivities(launcherIntent, 0)
+            }
+            val launcherPackages = launcherApps.map { it.activityInfo.packageName }.toSet()
 
             val packages: List<PackageInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
@@ -128,13 +125,33 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                 val isLocationGranted = hasLocation && (packageManager.checkPermission("android.permission.ACCESS_FINE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED || packageManager.checkPermission("android.permission.ACCESS_COARSE_LOCATION", pack.packageName) == PackageManager.PERMISSION_GRANTED)
                 val hasMic = requestedPermissions.contains("android.permission.RECORD_AUDIO")
                 val isMicGranted = hasMic && packageManager.checkPermission("android.permission.RECORD_AUDIO", pack.packageName) == PackageManager.PERMISSION_GRANTED
+                val hasInternet = requestedPermissions.contains("android.permission.INTERNET")
 
                 val sensitiveCount = listOf(hasCamera, hasLocation, hasMic).count { it }
                 val riskLevel = when (sensitiveCount) {
                     3 -> RiskLevel.HIGH; 1, 2 -> RiskLevel.MEDIUM; else -> RiskLevel.LOW
                 }
 
-                // NEW: Calculate raw millis for all four timeframes
+                val installerPackage = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        packageManager.getInstallSourceInfo(pack.packageName).installingPackageName
+                    } else {
+                        @Suppress("DEPRECATION")
+                        packageManager.getInstallerPackageName(pack.packageName)
+                    }
+                } catch (e: Exception) { null }
+
+                val (installerName, isSideloaded) = when (installerPackage) {
+                    "com.android.vending" -> Pair("Google Play Store", false)
+                    "com.sec.android.app.samsungapps" -> Pair("Samsung Galaxy Store", false)
+                    "com.amazon.venezia" -> Pair("Amazon Appstore", false)
+                    "com.google.android.packageinstaller", "com.android.packageinstaller" -> Pair("Sideloaded", true)
+                    null -> if (isSystemApp) Pair("System", false) else Pair("Unknown", true)
+                    else -> Pair(installerPackage, true)
+                }
+
+                val isHidden = !launcherPackages.contains(pack.packageName)
+
                 val raw1Day = stats1Day[pack.packageName]?.totalTimeInForeground ?: 0L
                 val raw3Days = stats3Days[pack.packageName]?.totalTimeInForeground ?: 0L
                 val raw1Week = stats1Week[pack.packageName]?.totalTimeInForeground ?: 0L
@@ -151,20 +168,23 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
                         isLocationGranted = isLocationGranted,
                         hasMicrophoneAccess = hasMic,
                         isMicrophoneGranted = isMicGranted,
+                        hasInternetAccess = hasInternet, 
+                        installerName = installerName,
+                        isSideloaded = isSideloaded,
+                        isHidden = isHidden, 
                         totalPermissionsRequested = totalPerms,
                         usage1Day = formatMillis(raw1Day),
                         usage3Days = formatMillis(raw3Days),
                         usage1Week = formatMillis(raw1Week),
                         usage1Month = formatMillis(raw1Month),
                         usage1DayMillis = raw1Day,
-                        usage3DaysMillis = raw3Days, // Pass them in!
+                        usage3DaysMillis = raw3Days,
                         usage1WeekMillis = raw1Week,
                         usage1MonthMillis = raw1Month,
                         riskLevel = riskLevel
                     )
                 )
             }
-
             rawAppList = appList
             applySorting() 
             _isLoading.value = false 
