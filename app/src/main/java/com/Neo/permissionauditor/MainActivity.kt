@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
+import kotlinx.coroutines.delay
 import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.cos
@@ -112,15 +113,24 @@ class MainActivity : FragmentActivity() {
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
             
-            // 1. Get the actual hour from the device
-            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            // THE FIX: Make currentHour a Reactive State!
+            var currentHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
+
+            // THE FIX: Background loop that updates the time every 60 seconds
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(60_000L) // Wait 1 minute
+                    currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                }
+            }
+
             val isDayTime = currentHour in 6..17 // 6 AM to 5:59 PM is Day
             
             // 2. Determine if we should show Dark or Light Theme
             val isDarkTheme = when (themePref) {
                 "light" -> false
                 "dark" -> true
-                "auto_time" -> !isDayTime // True if it's night (before 6AM or after 6PM)
+                "auto_time" -> !isDayTime 
                 else -> isSystemInDarkTheme()
             }
 
@@ -144,7 +154,6 @@ class MainActivity : FragmentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         
-                        // Pass the computed isDarkTheme variable directly to the background painter!
                         AestheticBackground(themePref = themePref, isDarkTheme = isDarkTheme)
                         
                         if (isUnlocked) {
