@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
+import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -73,14 +74,11 @@ private val AutoTypography = Typography(
 
 // --- 3. DYNAMIC BACKGROUND PAINTER WITH DESIGNS ---
 @Composable
-fun AestheticBackground(themePref: String, systemIsDark: Boolean) {
+fun AestheticBackground(themePref: String, isDarkTheme: Boolean) {
     val bgColor = MaterialTheme.colorScheme.background
-    
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        // FIX: The dark mode graphic triggers based on System Dark Mode, not the hardcoded clock!
-        val isNight = (themePref == "auto_time" && systemIsDark) || themePref == "dark" || (themePref == "system" && systemIsDark)
 
-        if (isNight) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        if (isDarkTheme) {
             val moonColor = if (themePref == "auto_time") Color(0xFFFFB74D) else Color(0xFFD1C4E9)
             drawCircle(color = moonColor.copy(alpha = 0.5f), radius = 5f, center = Offset(size.width * 0.15f, size.height * 0.1f))
             drawCircle(color = moonColor.copy(alpha = 0.3f), radius = 8f, center = Offset(size.width * 0.45f, size.height * 0.25f))
@@ -114,16 +112,27 @@ class MainActivity : FragmentActivity() {
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
             
-            // THE FIX: Defer entirely to the robust Android OS for day/night awareness
-            val systemIsDark = isSystemInDarkTheme()
+            // 1. Get the actual hour from the device
+            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val isDayTime = currentHour in 6..17 // 6 AM to 5:59 PM is Day
+            
+            // 2. Determine if we should show Dark or Light Theme
+            val isDarkTheme = when (themePref) {
+                "light" -> false
+                "dark" -> true
+                "auto_time" -> !isDayTime // True if it's night (before 6AM or after 6PM)
+                else -> isSystemInDarkTheme()
+            }
 
+            // 3. Pick the Color Palette
             val colorScheme = when (themePref) {
                 "light" -> PastelDayColors
                 "dark" -> PastelNightColors
-                "auto_time" -> if (systemIsDark) AutoNightColors else AutoDayColors
-                else -> if (systemIsDark) PastelNightColors else PastelDayColors
+                "auto_time" -> if (isDayTime) AutoDayColors else AutoNightColors
+                else -> if (isSystemInDarkTheme()) PastelNightColors else PastelDayColors
             }
 
+            // 4. Pick the Typography
             val typography = if (themePref == "auto_time") AutoTypography else ManualTypography
 
             var isUnlocked by remember {
@@ -134,7 +143,10 @@ class MainActivity : FragmentActivity() {
             MaterialTheme(colorScheme = colorScheme, typography = typography) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AestheticBackground(themePref = themePref, systemIsDark = systemIsDark)
+                        
+                        // Pass the computed isDarkTheme variable directly to the background painter!
+                        AestheticBackground(themePref = themePref, isDarkTheme = isDarkTheme)
+                        
                         if (isUnlocked) {
                             AuditorScreen(onThemeChange = { themePref = it })
                         } else {
