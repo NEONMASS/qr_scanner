@@ -1,6 +1,9 @@
 package com.Neo.permissionauditor
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
@@ -17,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.Neo.permissionauditor.ui.screens.AuditorScreen
-import kotlinx.coroutines.delay
 import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.cos
@@ -113,14 +116,28 @@ class MainActivity : FragmentActivity() {
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
             
-            // THE FIX: Make currentHour a Reactive State!
+            // 1. Get the actual hour from the device
             var currentHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
+            val context = LocalContext.current
 
-            // THE FIX: Background loop that updates the time every 60 seconds
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(60_000L) // Wait 1 minute
-                    currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            // THE INSTANT FIX: Listen to Android's native Time Broadcasts
+            DisposableEffect(context) {
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        // The instant the time changes, update the UI!
+                        currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_TIME_TICK)       // Native minute tick
+                    addAction(Intent.ACTION_TIME_CHANGED)    // User manually changed the clock
+                    addAction(Intent.ACTION_TIMEZONE_CHANGED) // User flew to a new timezone
+                }
+                context.registerReceiver(receiver, filter)
+
+                // Clean up the radio receiver if the app is closed
+                onDispose {
+                    context.unregisterReceiver(receiver)
                 }
             }
 
