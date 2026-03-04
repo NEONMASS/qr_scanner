@@ -17,7 +17,6 @@ object ExportUtils {
             
             // Write the App Data
             apps.forEach { app ->
-                // Clean commas out of the app name so it doesn't break the CSV columns
                 val cleanName = app.appName.replace(",", "")
                 writer.write("$cleanName,${app.packageName},${app.isSystemApp},${app.isCameraGranted},${app.isMicrophoneGranted},${app.isLocationGranted},${app.riskLevel.name},${app.usage1Day}\n")
             }
@@ -42,7 +41,6 @@ object ExportUtils {
         yPosition += 40f
 
         apps.forEach { app ->
-            // If we hit the bottom of the page, create a new one!
             if (yPosition > 780f) {
                 document.finishPage(page)
                 pageNum++
@@ -62,7 +60,6 @@ object ExportUtils {
 
         document.finishPage(page)
 
-        // Save the document to the user's chosen location
         context.contentResolver.openOutputStream(uri)?.use { outputStream ->
             document.writeTo(outputStream)
         }

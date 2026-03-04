@@ -40,8 +40,7 @@ import com.Neo.permissionauditor.viewmodel.SortOrder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-// NEW: Accept the onThemeChange callback from MainActivity!
-fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (String) -> Unit = {}) {
+fun AuditorScreen(viewModel: AuditorViewModel = viewModel()) {
 
     val apps by viewModel.installedApps.collectAsState()
     val showSystemApps by viewModel.showSystemApps.collectAsState()
@@ -96,8 +95,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                             singleLine = true
                         )
                     } else {
-                        // Title changes depending on the tab
-                        Text(if (currentSort == SortOrder.SETTINGS) "Settings" else (selectedCompany ?: "Permission Auditor PRO"))
+                        Text(selectedCompany ?: "Permission Auditor")
                     }
                 },
                 navigationIcon = {
@@ -141,8 +139,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                     NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Apps") }, selected = currentSort != SortOrder.PACKAGE_NAME && currentSort != SortOrder.USAGE_MOST_USED && currentSort != SortOrder.SETTINGS, onClick = { if (currentSort != SortOrder.RISK_HIGH_FIRST) viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null })
                     NavigationBarItem(icon = { Icon(Icons.Default.Build, null) }, label = { Text("Companies") }, selected = currentSort == SortOrder.PACKAGE_NAME, onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME) })
                     NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Usage") }, selected = currentSort == SortOrder.USAGE_MOST_USED, onClick = { viewModel.setSortOrder(SortOrder.USAGE_MOST_USED); selectedCompany = null })
-                    // NEW: Settings Tab
-                    NavigationBarItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Settings") }, selected = currentSort == SortOrder.SETTINGS, onClick = { viewModel.setSortOrder(SortOrder.SETTINGS); selectedCompany = null })
                 }
             }
         }
@@ -170,10 +166,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
                 when {
-                    // NEW: Render the Settings View
-                    currentSort == SortOrder.SETTINGS -> {
-                        SettingsView(onThemeChange = onThemeChange)
-                    }
                     currentSort == SortOrder.USAGE_MOST_USED -> {
                         val activeApps = filteredApps.filter { it.usage1DayMillis > 0 }
                         val max1Day = activeApps.maxOfOrNull { it.usage1DayMillis }?.coerceAtLeast(1L) ?: 1L
@@ -207,130 +199,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
     }
 }
 
-// NEW: A beautifully structured Settings Menu!
-@Composable
-fun SettingsView(onThemeChange: (String) -> Unit) {
-    val context = LocalContext.current
-    val sharedPrefs = context.getSharedPreferences("AuditorPrefs", Context.MODE_PRIVATE)
-
-    // Default to our new auto_time feature!
-    var currentTheme by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
-    var hasPin by remember { mutableStateOf(!sharedPrefs.getString("app_pin", "").isNullOrEmpty()) }
-    var useBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("use_biometrics", false)) }
-
-    var showPinSetupDialog by remember { mutableStateOf(false) }
-    var pinInput by remember { mutableStateOf("") }
-
-    val biometricManager = remember { BiometricManager.from(context) }
-    val canAuthenticate = remember { biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS }
-
-    if (showPinSetupDialog) {
-        AlertDialog(
-            onDismissRequest = { showPinSetupDialog = false; pinInput = "" },
-            title = { Text("Set 4-Digit PIN") },
-            text = {
-                OutlinedTextField(
-                    value = pinInput,
-                    onValueChange = { if (it.length <= 4) pinInput = it.filter { char -> char.isDigit() } },
-                    label = { Text("PIN") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (pinInput.length == 4) {
-                        sharedPrefs.edit().putString("app_pin", pinInput).apply()
-                        hasPin = true
-                        showPinSetupDialog = false
-                        pinInput = ""
-                        Toast.makeText(context, "App Lock Enabled!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "PIN must be 4 digits", Toast.LENGTH_SHORT).show()
-                    }
-                }) { Text("Save") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPinSetupDialog = false; pinInput = "" }) { Text("Cancel") }
-            }
-        )
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        
-        // --- THEME SECTION ---
-        Text("Appearance", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-        
-        // NEW: We added "Auto (Clock)" to the choices and arranged them nicely
-        Column(modifier = Modifier.fillMaxWidth()) {
-            val themes = listOf(
-                "auto_time" to "Auto (Day/Night Clock)",
-                "system" to "System Default",
-                "light" to "Force Light Mode", 
-                "dark" to "Force Dark Mode"
-            )
-            themes.forEach { (key, label) ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { 
-                    currentTheme = key
-                    sharedPrefs.edit().putString("theme", key).apply()
-                    onThemeChange(key)
-                }.padding(vertical = 4.dp)) {
-                    RadioButton(selected = currentTheme == key, onClick = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(32.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(32.dp))
-
-        // --- SECURITY SECTION ---
-        Text("Security", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text("App Lock (PIN)", fontWeight = FontWeight.Medium)
-                Text("Require a PIN to open Auditor PRO", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Switch(checked = hasPin, onCheckedChange = {
-                if (it) {
-                    showPinSetupDialog = true
-                } else {
-                    sharedPrefs.edit().remove("app_pin").putBoolean("use_biometrics", false).apply()
-                    hasPin = false
-                    useBiometrics = false
-                }
-            })
-        }
-
-        if (hasPin) {
-            Spacer(Modifier.height(24.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                    Text("Biometric Unlock", fontWeight = FontWeight.Medium)
-                    if (canAuthenticate) {
-                        Text("Use fingerprint or face recognition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Text("⚠️ Enable a fingerprint or screen lock in your phone's Android Settings first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                Switch(
-                    checked = useBiometrics && canAuthenticate, 
-                    onCheckedChange = {
-                        useBiometrics = it
-                        sharedPrefs.edit().putBoolean("use_biometrics", it).apply()
-                    },
-                    enabled = canAuthenticate 
-                )
-            }
-        }
-    }
-}
-
+// NEW: The Graph-Based Usage Row
 @Composable
 fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: Long, max1Month: Long) {
     Card(

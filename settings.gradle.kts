@@ -1,6 +1,6 @@
 pluginManagement {
     repositories {
-        google() // This is what was missing!
+        google() 
         mavenCentral()
         gradlePluginPortal()
     }
@@ -14,6 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-// You can name this whatever your project is actually called
 rootProject.name = "permissionauditor" 
 include(":app")

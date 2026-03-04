@@ -18,8 +18,7 @@ import kotlinx.coroutines.launch
 import com.Neo.permissionauditor.model.AppPrivacyInfo
 import com.Neo.permissionauditor.model.RiskLevel
 
-// NEW: Added SETTINGS to the states
-enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED, SETTINGS }
+enum class SortOrder { RISK_HIGH_FIRST, RISK_LOW_FIRST, APP_NAME_AZ, PACKAGE_NAME, USAGE_MOST_USED }
 
 class AuditorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -68,7 +67,6 @@ class AuditorViewModel(application: Application) : AndroidViewModel(application)
             SortOrder.APP_NAME_AZ -> rawAppList.sortedBy { it.appName.lowercase() }
             SortOrder.PACKAGE_NAME -> rawAppList.sortedBy { it.packageName }
             SortOrder.USAGE_MOST_USED -> rawAppList.sortedByDescending { it.usage1DayMillis } 
-            SortOrder.SETTINGS -> rawAppList // Fallback for settings tab
         }
     }
 
