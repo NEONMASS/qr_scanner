@@ -323,7 +323,7 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: Long, max1Month: Long) {
     Card(

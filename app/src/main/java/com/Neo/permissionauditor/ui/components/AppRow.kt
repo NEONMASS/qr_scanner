@@ -62,7 +62,7 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+                     
                     Text("Network Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     if (appInfo.hasInternetAccess) {

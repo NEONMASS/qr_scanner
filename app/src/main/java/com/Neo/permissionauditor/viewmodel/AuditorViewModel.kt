@@ -1,5 +1,5 @@
 package com.Neo.permissionauditor.viewmodel
-
+ 
 import android.app.AppOpsManager
 import android.app.Application
 import android.app.usage.UsageStatsManager

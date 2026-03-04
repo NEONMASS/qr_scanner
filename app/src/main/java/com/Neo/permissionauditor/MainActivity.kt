@@ -36,7 +36,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-// Themes
+// Themes \
 private val PastelDayColors = lightColorScheme(
     primary = Color(0xFFE57373), background = Color(0xFFFFF9F5), surface = Color(0xFFFFFFFF),
     surfaceVariant = Color(0xFFFFEBE8), onPrimary = Color.White, onBackground = Color(0xFF4A4A4A),
