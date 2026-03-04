@@ -46,33 +46,16 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                 Column {
                     Text(text = "Total Permissions: ${appInfo.totalPermissionsRequested}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
-<<<<<<< HEAD
-
-                    // NEW: Ghost App Warning in Popup
-                    if (appInfo.isHidden && !appInfo.isSystemApp) {
-                        Text("Visibility Status:", fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("👻 GHOST APP - Purposely hidden from your Home Screen!", color = Color.Red, fontWeight = FontWeight.Bold)
-=======
                     if (appInfo.isHidden && !appInfo.isSystemApp) {
                         Text("Visibility Status:", fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text("UI-Less App", color = Color.Red, fontWeight = FontWeight.Bold)
->>>>>>> 9765858 (sale version)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
                     Text("Origin / Installation Source:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     if (appInfo.isSideloaded) {
-<<<<<<< HEAD
-                        Text("⚠️ ${appInfo.installerName}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium)
-                    } else {
-                        Text("✅ ${appInfo.installerName}", color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-=======
                         Text(" ${appInfo.installerName}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium)
                     } else {
                         Text(" ${appInfo.installerName}", color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
@@ -91,23 +74,10 @@ fun AppRow(appInfo: AppPrivacyInfo, isGridMode: Boolean = false) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("Sensitive Status:", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
->>>>>>> 9765858 (sale version)
                     
-                    Text("Network Status:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (appInfo.hasInternetAccess) {
-                        Text("🌐 Can silently connect to the internet.", color = Color(0xFF1976D2), fontWeight = FontWeight.Medium)
-                    } else {
-                        Text("🚫 100% Offline App. Safe.", color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Sensitive Status:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) "🟢 Enabled" else "🔴 Disabled"}") }
-                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) "🟢 Enabled" else "🔴 Disabled"}") }
-                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) "🟢 Enabled" else "🔴 Disabled"}") }
+                    if (appInfo.hasCameraAccess) { Text("Camera: ${if (appInfo.isCameraGranted) " Enabled" else " Disabled"}") }
+                    if (appInfo.hasMicrophoneAccess) { Text("Microphone: ${if (appInfo.isMicrophoneGranted) " Enabled" else " Disabled"}") }
+                    if (appInfo.hasLocationAccess) { Text("Location: ${if (appInfo.isLocationGranted) " Enabled" else " Disabled"}") }
                     if (!appInfo.hasCameraAccess && !appInfo.hasMicrophoneAccess && !appInfo.hasLocationAccess) {
                         Text("No sensitive permissions requested.")
                     }

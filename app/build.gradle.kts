@@ -8,8 +8,8 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.Neo.permissionauditor"
-        minSdk = 26 
+        applicationId = "com.Neo.permissionauditor.pro"
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
