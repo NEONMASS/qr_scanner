@@ -40,7 +40,7 @@ import com.Neo.permissionauditor.viewmodel.SortOrder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-// NEW: Accept the onThemeChange callback from MainActivity!
+
 fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (String) -> Unit = {}) {
 
     val apps by viewModel.installedApps.collectAsState()
@@ -96,7 +96,6 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                             singleLine = true
                         )
                     } else {
-                        // Title changes depending on the tab
                         Text(if (currentSort == SortOrder.SETTINGS) "Settings" else (selectedCompany ?: "Permission Auditor PRO"))
                     }
                 },
@@ -141,7 +140,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                     NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Apps") }, selected = currentSort != SortOrder.PACKAGE_NAME && currentSort != SortOrder.USAGE_MOST_USED && currentSort != SortOrder.SETTINGS, onClick = { if (currentSort != SortOrder.RISK_HIGH_FIRST) viewModel.setSortOrder(SortOrder.RISK_HIGH_FIRST); selectedCompany = null })
                     NavigationBarItem(icon = { Icon(Icons.Default.Build, null) }, label = { Text("Companies") }, selected = currentSort == SortOrder.PACKAGE_NAME, onClick = { viewModel.setSortOrder(SortOrder.PACKAGE_NAME) })
                     NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Usage") }, selected = currentSort == SortOrder.USAGE_MOST_USED, onClick = { viewModel.setSortOrder(SortOrder.USAGE_MOST_USED); selectedCompany = null })
-                    // NEW: Settings Tab
+                    // Settings Tab
                     NavigationBarItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Settings") }, selected = currentSort == SortOrder.SETTINGS, onClick = { viewModel.setSortOrder(SortOrder.SETTINGS); selectedCompany = null })
                 }
             }
@@ -170,7 +169,7 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
                 when {
-                    // NEW: Render the Settings View
+                    // Render the Settings View
                     currentSort == SortOrder.SETTINGS -> {
                         SettingsView(onThemeChange = onThemeChange)
                     }
@@ -207,13 +206,11 @@ fun AuditorScreen(viewModel: AuditorViewModel = viewModel(), onThemeChange: (Str
     }
 }
 
-// NEW: A beautifully structured Settings Menu!
 @Composable
 fun SettingsView(onThemeChange: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = context.getSharedPreferences("AuditorPrefs", Context.MODE_PRIVATE)
 
-    // Default to our new auto_time feature!
     var currentTheme by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
     var hasPin by remember { mutableStateOf(!sharedPrefs.getString("app_pin", "").isNullOrEmpty()) }
     var useBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("use_biometrics", false)) }
@@ -261,8 +258,6 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
         // --- THEME SECTION ---
         Text("Appearance", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
-        
-        // NEW: We added "Auto (Clock)" to the choices and arranged them nicely
         Column(modifier = Modifier.fillMaxWidth()) {
             val themes = listOf(
                 "auto_time" to "Auto (Day/Night Clock)",
@@ -286,8 +281,6 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
         Spacer(Modifier.height(32.dp))
         HorizontalDivider()
         Spacer(Modifier.height(32.dp))
-
-        // --- SECURITY SECTION ---
         Text("Security", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
@@ -315,7 +308,7 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
                     if (canAuthenticate) {
                         Text("Use fingerprint or face recognition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Text("⚠️ Enable a fingerprint or screen lock in your phone's Android Settings first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text(" Enable a fingerprint or screen lock in your phone's Android Settings first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 Switch(
@@ -330,7 +323,7 @@ fun SettingsView(onThemeChange: (String) -> Unit) {
         }
     }
 }
-
+ 
 @Composable
 fun UsageRow(appInfo: AppPrivacyInfo, max1Day: Long, max3Days: Long, max1Week: Long, max1Month: Long) {
     Card(

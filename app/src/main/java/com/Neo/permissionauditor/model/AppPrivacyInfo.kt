@@ -20,7 +20,6 @@ data class AppPrivacyInfo(
     val installerName: String,
     val isSideloaded: Boolean,
     
-    // NEW: Ghost App Tracker
     val isHidden: Boolean,
     
     val totalPermissionsRequested: Int,

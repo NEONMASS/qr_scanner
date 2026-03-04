@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.Neo.permissionauditor"
-    compileSdk = 34 // Compiling for Android 14
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.Neo.permissionauditor.pro"
-        minSdk = 26 // Android 8.0
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -43,7 +43,6 @@ android {
     }
 
     composeOptions {
-        // Must match your Kotlin version (1.9.22 uses 1.5.10)
         kotlinCompilerExtensionVersion = "1.5.10"
     }
 }

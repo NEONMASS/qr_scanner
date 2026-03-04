@@ -36,7 +36,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-// --- 1. MANUAL THEMES (Cream & Twilight) ---
+// Themes \
 private val PastelDayColors = lightColorScheme(
     primary = Color(0xFFE57373), background = Color(0xFFFFF9F5), surface = Color(0xFFFFFFFF),
     surfaceVariant = Color(0xFFFFEBE8), onPrimary = Color.White, onBackground = Color(0xFF4A4A4A),
@@ -56,7 +56,7 @@ private val ManualTypography = Typography(
     labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 11.sp)
 )
 
-// --- 2. EXCLUSIVE AUTO THEMES (Matcha & Velvet) ---
+// AUTO THEMES
 private val AutoDayColors = lightColorScheme(
     primary = Color(0xFF81C784), background = Color(0xFFF1F8E9), surface = Color(0xFFFFFFFF),
     surfaceVariant = Color(0xFFE8F5E9), onPrimary = Color.White, onBackground = Color(0xFF2E7D32),
@@ -76,7 +76,6 @@ private val AutoTypography = Typography(
     labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 11.sp, letterSpacing = 1.sp)
 )
 
-// --- 3. DYNAMIC BACKGROUND PAINTER WITH DESIGNS ---
 @Composable
 fun AestheticBackground(themePref: String, isDarkTheme: Boolean) {
     val bgColor = MaterialTheme.colorScheme.background
@@ -116,42 +115,34 @@ class MainActivity : FragmentActivity() {
         setContent {
             var themePref by remember { mutableStateOf(sharedPrefs.getString("theme", "auto_time") ?: "auto_time") }
             
-            // 1. Get the actual hour from the device
             var currentHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
             val context = LocalContext.current
 
-            // THE INSTANT FIX: Listen to Android's native Time Broadcasts
             DisposableEffect(context) {
                 val receiver = object : BroadcastReceiver() {
                     override fun onReceive(context: Context?, intent: Intent?) {
-                        // The instant the time changes, update the UI!
                         currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                     }
                 }
                 val filter = IntentFilter().apply {
-                    addAction(Intent.ACTION_TIME_TICK)       // Native minute tick
-                    addAction(Intent.ACTION_TIME_CHANGED)    // User manually changed the clock
-                    addAction(Intent.ACTION_TIMEZONE_CHANGED) // User flew to a new timezone
+                    addAction(Intent.ACTION_TIME_TICK)       
+                    addAction(Intent.ACTION_TIME_CHANGED)
+                    addAction(Intent.ACTION_TIMEZONE_CHANGED) 
                 }
                 context.registerReceiver(receiver, filter)
-
-                // Clean up the radio receiver if the app is closed
                 onDispose {
                     context.unregisterReceiver(receiver)
                 }
             }
 
-            val isDayTime = currentHour in 6..17 // 6 AM to 5:59 PM is Day
-            
-            // 2. Determine if we should show Dark or Light Theme
+            val isDayTime = currentHour in 6..17 
             val isDarkTheme = when (themePref) {
                 "light" -> false
                 "dark" -> true
                 "auto_time" -> !isDayTime 
                 else -> isSystemInDarkTheme()
             }
-
-            // 3. Pick the Color Palette
+            
             val colorScheme = when (themePref) {
                 "light" -> PastelDayColors
                 "dark" -> PastelNightColors
@@ -159,7 +150,6 @@ class MainActivity : FragmentActivity() {
                 else -> if (isSystemInDarkTheme()) PastelNightColors else PastelDayColors
             }
 
-            // 4. Pick the Typography
             val typography = if (themePref == "auto_time") AutoTypography else ManualTypography
 
             var isUnlocked by remember {
