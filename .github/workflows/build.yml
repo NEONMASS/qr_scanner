@@ -265,7 +265,7 @@ jobs:
 
       - name: Display Builds
         run: |
-          echo "Files to upload:"
+          echo "Files to be upload:"
           find mega-upload -type f -print
 
       - name: Upload Builds to MEGA
