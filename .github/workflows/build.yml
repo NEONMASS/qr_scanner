@@ -44,31 +44,67 @@ jobs:
           ninja --version
           git --version
 
+      # --------------------------------------------------------
+      # Skia
+      # --------------------------------------------------------
       - name: Download Skia
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\deps\skia" | Out-Null
+          $ErrorActionPreference = "Stop"
+          $ProgressPreference = "SilentlyContinue"
+
+          $skiaDir = Join-Path $env:GITHUB_WORKSPACE "deps\skia"
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path $skiaDir | Out-Null
 
           $url = "https://github.com/aseprite/skia/releases/download/$env:SKIA_VERSION/Skia-Windows-Release-x64.zip"
+
+          Write-Host "Downloading Skia:"
+          Write-Host $url
 
           Invoke-WebRequest `
             -Uri $url `
             -OutFile "$env:GITHUB_WORKSPACE\skia.zip"
 
+          if (!(Test-Path "$env:GITHUB_WORKSPACE\skia.zip")) {
+            throw "Skia download failed."
+          }
+
       - name: Extract Skia
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+
+          $skiaDir = "$env:GITHUB_WORKSPACE\deps\skia"
+
           Expand-Archive `
             -Path "$env:GITHUB_WORKSPACE\skia.zip" `
-            -DestinationPath "$env:GITHUB_WORKSPACE\deps\skia" `
+            -DestinationPath $skiaDir `
             -Force
 
-          Remove-Item "$env:GITHUB_WORKSPACE\skia.zip"
+          Remove-Item `
+            "$env:GITHUB_WORKSPACE\skia.zip" `
+            -Force
 
+          if (!(Test-Path "$skiaDir\out\Release-x64\skia.lib")) {
+            Write-Host "Skia directory contents:"
+            Get-ChildItem $skiaDir -Recurse | Select-Object FullName
+
+            throw "Skia library was not found."
+          }
+
+      # --------------------------------------------------------
+      # Configure
+      # --------------------------------------------------------
       - name: Configure Aseprite
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+
+          if exist build rmdir /S /Q build
           mkdir build
           cd build
 
@@ -81,38 +117,234 @@ jobs:
             -G Ninja ^
             ..
 
+      # --------------------------------------------------------
+      # Build
+      # --------------------------------------------------------
       - name: Build Aseprite
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+
           cd build
+
           ninja aseprite
 
+      # --------------------------------------------------------
+      # Verify compilation
+      # --------------------------------------------------------
       - name: Verify Windows Build
         shell: pwsh
         run: |
-          if (!(Test-Path "build\bin\aseprite.exe")) {
-            Write-Error "Aseprite executable was not produced."
-            exit 1
+          $ErrorActionPreference = "Stop"
+
+          $exe = "$env:GITHUB_WORKSPACE\build\bin\aseprite.exe"
+          $data = "$env:GITHUB_WORKSPACE\build\bin\data"
+
+          if (!(Test-Path $exe)) {
+            throw "Aseprite executable was not produced."
           }
 
-          Write-Host "Aseprite Windows build succeeded."
+          if (!(Test-Path $data)) {
+            throw "Aseprite data directory was not produced."
+          }
 
+          Write-Host "Aseprite executable:"
+          Get-Item $exe | Format-List FullName,Length
+
+          Write-Host ""
+          Write-Host "Aseprite data directory:"
+          Get-ChildItem $data | Select-Object Name
+
+      # --------------------------------------------------------
+      # Inspect native dependencies
+      # --------------------------------------------------------
+      - name: Inspect Windows Dependencies
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+
+          dumpbin /DEPENDENTS build\bin\aseprite.exe > aseprite-dependencies.txt
+
+          type aseprite-dependencies.txt
+
+      # --------------------------------------------------------
+      # Prepare portable package
+      # --------------------------------------------------------
       - name: Package Windows Build
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\package" | Out-Null
+          $ErrorActionPreference = "Stop"
+          $ProgressPreference = "SilentlyContinue"
 
+          $root = "$env:GITHUB_WORKSPACE"
+          $bin = "$root\build\bin"
+          $package = "$root\package-windows"
+
+          if (Test-Path $package) {
+            Remove-Item $package -Recurse -Force
+          }
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path $package | Out-Null
+
+          # ----------------------------------------------------
+          # Aseprite executable
+          # ----------------------------------------------------
           Copy-Item `
-            -Path "$env:GITHUB_WORKSPACE\build\bin\*" `
-            -Destination "$env:GITHUB_WORKSPACE\package" `
+            "$bin\aseprite.exe" `
+            "$package\aseprite.exe" `
+            -Force
+
+          # ----------------------------------------------------
+          # Aseprite data
+          # ----------------------------------------------------
+          Copy-Item `
+            "$bin\data" `
+            "$package\data" `
             -Recurse `
             -Force
 
+          # ----------------------------------------------------
+          # Find OpenSSL DLLs
+          #
+          # Git for Windows contains OpenSSL 3 x64 DLLs on
+          # the GitHub Windows runner.
+          #
+          # We deliberately do NOT use Python's DLLs.
+          # ----------------------------------------------------
+          $candidateRoots = @(
+            "$env:ProgramFiles\Git\mingw64\bin",
+            "$env:ProgramFiles\Git\usr\bin",
+            "${env:ProgramFiles(x86)}\Git\mingw64\bin",
+            "${env:ProgramFiles(x86)}\Git\usr\bin"
+          ) | Where-Object {
+            $_ -and (Test-Path $_)
+          }
+
+          $crypto = $null
+          $ssl = $null
+
+          foreach ($dir in $candidateRoots) {
+            if (!$crypto) {
+              $candidate = Join-Path $dir "libcrypto-3-x64.dll"
+
+              if (Test-Path $candidate) {
+                $crypto = $candidate
+              }
+            }
+
+            if (!$ssl) {
+              $candidate = Join-Path $dir "libssl-3-x64.dll"
+
+              if (Test-Path $candidate) {
+                $ssl = $candidate
+              }
+            }
+          }
+
+          if (!$crypto) {
+            throw "libcrypto-3-x64.dll was not found in the GitHub runner."
+          }
+
+          if (!$ssl) {
+            throw "libssl-3-x64.dll was not found in the GitHub runner."
+          }
+
+          Write-Host "Using OpenSSL:"
+          Write-Host "Crypto: $crypto"
+          Write-Host "SSL:    $ssl"
+
+          Copy-Item `
+            $crypto `
+            "$package\libcrypto-3-x64.dll" `
+            -Force
+
+          Copy-Item `
+            $ssl `
+            "$package\libssl-3-x64.dll" `
+            -Force
+
+          # ----------------------------------------------------
+          # Copy OpenSSL's zlib dependency if present.
+          # ----------------------------------------------------
+          $zlib = $null
+
+          foreach ($dir in $candidateRoots) {
+            $candidate = Join-Path $dir "zlib1.dll"
+
+            if (Test-Path $candidate) {
+              $zlib = $candidate
+              break
+            }
+          }
+
+          if ($zlib) {
+            Write-Host "Found zlib dependency: $zlib"
+
+            Copy-Item `
+              $zlib `
+              "$package\zlib1.dll" `
+              -Force
+          }
+
+          Write-Host ""
+          Write-Host "Windows package contents:"
+          Get-ChildItem $package -Recurse |
+            Select-Object FullName,Length
+
+      # --------------------------------------------------------
+      # Test package
+      # --------------------------------------------------------
+      - name: Test Packaged Windows Build
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/package-windows
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Testing packaged Aseprite..."
+
+          $process = Start-Process `
+            -FilePath ".\aseprite.exe" `
+            -ArgumentList "--version" `
+            -WorkingDirectory "." `
+            -PassThru `
+            -Wait `
+            -NoNewWindow
+
+          Write-Host "Aseprite exit code: $($process.ExitCode)"
+
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged Aseprite failed to start."
+          }
+
+          Write-Host "Packaged Windows Aseprite started successfully."
+
+      # --------------------------------------------------------
+      # Create ZIP
+      # --------------------------------------------------------
+      - name: Create Windows ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $zip = "$env:GITHUB_WORKSPACE\aseprite-windows-x64.zip"
+
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+
           Compress-Archive `
-            -Path "$env:GITHUB_WORKSPACE\package\*" `
-            -DestinationPath "$env:GITHUB_WORKSPACE\aseprite-windows-x64.zip" `
+            -Path "$env:GITHUB_WORKSPACE\package-windows\*" `
+            -DestinationPath $zip `
             -CompressionLevel Optimal
+
+          if (!(Test-Path $zip)) {
+            throw "Windows ZIP was not created."
+          }
+
+          Get-Item $zip | Format-List FullName,Length
 
       - name: Upload Windows Build Artifact
         uses: actions/upload-artifact@v4
@@ -144,6 +376,7 @@ jobs:
           sudo apt-get update
 
           sudo apt-get install -y \
+            g++ \
             clang \
             cmake \
             ninja-build \
@@ -162,33 +395,51 @@ jobs:
       - name: Verify Build Tools
         run: |
           clang --version
+          clang++ --version
           cmake --version
           ninja --version
           git --version
 
+      # --------------------------------------------------------
+      # Skia
+      # --------------------------------------------------------
       - name: Download Skia
         run: |
+          set -e
+
           mkdir -p "$GITHUB_WORKSPACE/deps/skia"
 
-          curl -L \
+          curl -fL \
             "https://github.com/aseprite/skia/releases/download/${SKIA_VERSION}/Skia-Linux-Release-x64.zip" \
             -o "$GITHUB_WORKSPACE/skia.zip"
 
       - name: Extract Skia
         run: |
+          set -e
+
           unzip -q \
             "$GITHUB_WORKSPACE/skia.zip" \
             -d "$GITHUB_WORKSPACE/deps/skia"
 
           rm "$GITHUB_WORKSPACE/skia.zip"
 
+          test -f \
+            "$GITHUB_WORKSPACE/deps/skia/out/Release-x64/libskia.a"
+
+      # --------------------------------------------------------
+      # Configure
+      # --------------------------------------------------------
       - name: Configure Aseprite
         working-directory: ${{ github.workspace }}
         env:
           CC: clang
           CXX: clang++
         run: |
+          set -e
+
+          rm -rf build
           mkdir -p build
+
           cd build
 
           cmake \
@@ -202,33 +453,91 @@ jobs:
             -G Ninja \
             ..
 
+      # --------------------------------------------------------
+      # Build
+      # --------------------------------------------------------
       - name: Build Aseprite
         working-directory: ${{ github.workspace }}/build
         run: |
+          set -e
           ninja aseprite
 
+      # --------------------------------------------------------
+      # Verify
+      # --------------------------------------------------------
       - name: Verify Linux Build
         run: |
-          if [ ! -f "$GITHUB_WORKSPACE/build/bin/aseprite" ]; then
-            echo "Aseprite executable was not produced."
-            exit 1
-          fi
+          set -e
+
+          test -f "$GITHUB_WORKSPACE/build/bin/aseprite"
+          test -d "$GITHUB_WORKSPACE/build/bin/data"
 
           echo "Aseprite Linux build succeeded."
 
+      # --------------------------------------------------------
+      # Inspect Linux dependencies
+      # --------------------------------------------------------
+      - name: Inspect Linux Dependencies
+        run: |
+          set -e
+
+          file "$GITHUB_WORKSPACE/build/bin/aseprite"
+
+          ldd "$GITHUB_WORKSPACE/build/bin/aseprite" || true
+
+      # --------------------------------------------------------
+      # Package
+      # --------------------------------------------------------
       - name: Package Linux Build
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/package"
+          set -e
+
+          rm -rf "$GITHUB_WORKSPACE/package-linux"
+
+          mkdir -p "$GITHUB_WORKSPACE/package-linux"
+
+          cp \
+            "$GITHUB_WORKSPACE/build/bin/aseprite" \
+            "$GITHUB_WORKSPACE/package-linux/aseprite"
 
           cp -r \
-            "$GITHUB_WORKSPACE/build/bin/"* \
-            "$GITHUB_WORKSPACE/package/"
+            "$GITHUB_WORKSPACE/build/bin/data" \
+            "$GITHUB_WORKSPACE/package-linux/data"
+
+          chmod +x \
+            "$GITHUB_WORKSPACE/package-linux/aseprite"
+
+          echo "Linux package contents:"
+          find "$GITHUB_WORKSPACE/package-linux" -maxdepth 2 -type f -print
+
+      # --------------------------------------------------------
+      # Test
+      # --------------------------------------------------------
+      - name: Test Packaged Linux Build
+        working-directory: ${{ github.workspace }}/package-linux
+        run: |
+          set -e
+
+          ./aseprite --version
+
+          echo "Packaged Linux Aseprite started successfully."
+
+      # --------------------------------------------------------
+      # TAR.GZ
+      # --------------------------------------------------------
+      - name: Create Linux Archive
+        run: |
+          set -e
 
           tar \
             -czf \
             "$GITHUB_WORKSPACE/aseprite-linux-x64.tar.gz" \
-            -C "$GITHUB_WORKSPACE/package" \
+            -C "$GITHUB_WORKSPACE/package-linux" \
             .
+
+          test -f "$GITHUB_WORKSPACE/aseprite-linux-x64.tar.gz"
+
+          ls -lh "$GITHUB_WORKSPACE/aseprite-linux-x64.tar.gz"
 
       - name: Upload Linux Build Artifact
         uses: actions/upload-artifact@v4
@@ -251,6 +560,7 @@ jobs:
       - build-linux
 
     steps:
+
       - name: Download Windows Build
         uses: actions/download-artifact@v4
         with:
@@ -265,13 +575,27 @@ jobs:
 
       - name: Display Builds
         run: |
-          echo "Files to be upload:"
+          echo "Files to upload:"
           find mega-upload -type f -print
 
-      - name: Upload Builds to MEGA
+      # --------------------------------------------------------
+      # Upload Windows build
+      # --------------------------------------------------------
+      - name: Upload Windows Build to MEGA
         uses: Difegue/action-megacmd@master
         with:
-          args: put "mega-upload/*" "/Aseprite-Builds/"
+          args: put "mega-upload/windows/aseprite-windows-x64.zip" "/Aseprite-Builds/"
+        env:
+          USERNAME: ${{ secrets.MEGA_USERNAME }}
+          PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+
+      # --------------------------------------------------------
+      # Upload Linux build
+      # --------------------------------------------------------
+      - name: Upload Linux Build to MEGA
+        uses: Difegue/action-megacmd@master
+        with:
+          args: put "mega-upload/linux/aseprite-linux-x64.tar.gz" "/Aseprite-Builds/"
         env:
           USERNAME: ${{ secrets.MEGA_USERNAME }}
           PASSWORD: ${{ secrets.MEGA_PASSWORD }}
